@@ -48,6 +48,7 @@ final class LibraryServiceTests: XCTestCase {
 
         XCTAssertEqual(items.count, 1)
         XCTAssertEqual(items.first?.title, TestFixtures.sampleBookTitle)
+        XCTAssertEqual(items.first?.format, .epub)
         XCTAssertEqual(items.first?.isEPUB, true)
         XCTAssertEqual(items.first?.fileURL, TestFixtures.sampleBookURL)
         let copiedBooks = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)

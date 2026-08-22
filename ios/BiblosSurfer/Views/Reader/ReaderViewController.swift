@@ -19,6 +19,7 @@ final class ReaderViewController: UIViewController {
     private let navigatorController: UIViewController
     private let visualNavigator: VisualNavigator
     private let epubNavigator: EPUBNavigatorViewController?
+    private let readerView: ReaderView
     private var ttsService: TTSService?
     private let locationDebouncer = Debouncer()
     private let wordDebouncer = Debouncer()
@@ -31,30 +32,23 @@ final class ReaderViewController: UIViewController {
         bookStore: BookStoreProtocol,
         settings: ReaderSettingsStore
     ) throws {
-        self.publication = publication
-        self.item = item
-        self.bookStore = bookStore
-        self.openerRelativePath = item.fileURL.lastPathComponent
         let initialLocation = item.locatorJSON.flatMap { try? Locator(jsonString: $0) }
-        let canSpeak = !item.isPDF && PublicationSpeechSynthesizer.canSpeak(publication: publication)
-        self.viewModel = ReaderViewModel(
-            title: item.title,
-            isPDF: item.isPDF,
-            canSpeak: canSpeak,
-            settings: settings
-        )
+        let pdfNavigator: PDFNavigatorViewController?
+        let epubNavigator: EPUBNavigatorViewController?
+        let navigatorController: UIViewController
+        let visualNavigator: VisualNavigator
 
-        if item.isPDF {
+        switch item.format {
+        case .pdf:
             let pdf = try PDFNavigatorViewController(
                 publication: publication,
                 initialLocation: initialLocation
             )
-            self.navigatorController = pdf
-            self.visualNavigator = pdf
-            self.epubNavigator = nil
-            super.init(nibName: nil, bundle: nil)
-            pdf.delegate = self
-        } else {
+            pdfNavigator = pdf
+            epubNavigator = nil
+            navigatorController = pdf
+            visualNavigator = pdf
+        case .epub:
             var config = EPUBNavigatorViewController.Configuration(
                 preferences: settings.epubPreferences()
             )
@@ -66,12 +60,31 @@ final class ReaderViewController: UIViewController {
                 initialLocation: initialLocation,
                 config: config
             )
-            self.navigatorController = epub
-            self.visualNavigator = epub
-            self.epubNavigator = epub
-            super.init(nibName: nil, bundle: nil)
-            epub.delegate = self
+            pdfNavigator = nil
+            epubNavigator = epub
+            navigatorController = epub
+            visualNavigator = epub
+        case .unknown:
+            throw Errors.Publication.unknownFormat(title: item.title)
         }
+
+        self.publication = publication
+        self.item = item
+        self.bookStore = bookStore
+        self.openerRelativePath = item.fileURL.lastPathComponent
+        self.viewModel = ReaderViewModel(
+            title: item.title,
+            format: item.format,
+            canSpeak: item.format == .epub && PublicationSpeechSynthesizer.canSpeak(publication: publication),
+            settings: settings
+        )
+        self.navigatorController = navigatorController
+        self.visualNavigator = visualNavigator
+        self.epubNavigator = epubNavigator
+        self.readerView = ReaderView(navigatorView: navigatorController.view)
+        super.init(nibName: nil, bundle: nil)
+        pdfNavigator?.delegate = self
+        epubNavigator?.delegate = self
 
         if viewModel.viewProperties.canSpeak {
             let tts = TTSService(publication: publication, settings: settings, bookTitle: item.title)
@@ -85,10 +98,12 @@ final class ReaderViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func loadView() {
+        view = readerView
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
-        view.accessibilityIdentifier = AccessibilityIdentifiers.Reader.container
         title = viewModel.viewProperties.title
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "textformat.size"),
@@ -99,14 +114,6 @@ final class ReaderViewController: UIViewController {
         navigationItem.rightBarButtonItem?.accessibilityIdentifier = AccessibilityIdentifiers.Reader.settings
 
         addChild(navigatorController)
-        navigatorController.view.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(navigatorController.view)
-        NSLayoutConstraint.activate([
-            navigatorController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            navigatorController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            navigatorController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            navigatorController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
         navigatorController.didMove(toParent: self)
     }
 
@@ -163,20 +170,14 @@ final class ReaderViewController: UIViewController {
         )
         host.view.backgroundColor = .clear
         addChild(host)
-        host.view.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            host.view.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
-        ])
+        readerView.setTTSPanel(host.view)
         host.didMove(toParent: self)
         ttsPanelHost = host
     }
 
     private func removeTTSPanel() {
         ttsPanelHost?.willMove(toParent: nil)
-        ttsPanelHost?.view.removeFromSuperview()
+        readerView.setTTSPanel(nil)
         ttsPanelHost?.removeFromParent()
         ttsPanelHost = nil
         epubNavigator?.apply(decorations: [], in: "tts")
@@ -265,47 +266,5 @@ extension ReaderViewController: TTSServiceDelegate {
             self?.dismiss(animated: true)
         }
         present(UIHostingController(rootView: errorView), animated: true)
-    }
-}
-
-private struct TTSPanelView: View {
-    @Bindable var viewModel: ReaderViewModel
-    var onPlayPause: () -> Void
-    var onStop: () -> Void
-    var onNext: () -> Void
-    var onPrevious: () -> Void
-
-    var body: some View {
-        HStack(spacing: StyleConstants.stackSpacing) {
-            Button(action: onPrevious) {
-                Image(systemName: "backward.fill")
-            }
-            .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsPrevious)
-
-            Button(action: onPlayPause) {
-                Image(systemName: viewModel.viewProperties.isPlaying ? "pause.fill" : "play.fill")
-            }
-            .accessibilityIdentifier(
-                viewModel.viewProperties.isPlaying
-                    ? AccessibilityIdentifiers.Reader.ttsPause
-                    : AccessibilityIdentifiers.Reader.ttsPlay
-            )
-
-            Button(action: onStop) {
-                Image(systemName: "stop.fill")
-            }
-            .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsStop)
-
-            Button(action: onNext) {
-                Image(systemName: "forward.fill")
-            }
-            .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsNext)
-        }
-        .font(.title2)
-        .padding(StyleConstants.ttsPanelPadding)
-        .frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: StyleConstants.ttsPanelCornerRadius, style: .continuous))
-        .padding(StyleConstants.contentMargin)
-        .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsPanel)
     }
 }

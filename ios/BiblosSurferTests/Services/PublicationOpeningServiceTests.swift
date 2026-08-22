@@ -15,7 +15,7 @@ final class PublicationOpeningServiceTests: XCTestCase {
 
         XCTAssertEqual(opened.title, TestFixtures.sampleBookTitle)
         XCTAssertEqual(opened.author, TestFixtures.sampleBookAuthor)
-        XCTAssertFalse(opened.isPDF)
+        XCTAssertEqual(opened.format, .epub)
     }
 
     func testSamplePDFIsOpenedAsPDF() async throws {
@@ -23,7 +23,13 @@ final class PublicationOpeningServiceTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
         let opened = try await PublicationOpeningService().open(url: url)
-        XCTAssertTrue(opened.isPDF)
+        XCTAssertEqual(opened.format, .pdf)
+    }
+
+    func testUnknownPathExtensionIsUnknownFormat() {
+        let url = URL(fileURLWithPath: "/tmp/odd-book.cbz")
+        XCTAssertEqual(LibraryItem(fileURL: url).format, .unknown)
+        XCTAssertEqual(Errors.Publication.unknownFormat(title: "Odd Book").title, "Unknown format")
     }
 
     func testMissingFileSurfacesAPublicationError() async {

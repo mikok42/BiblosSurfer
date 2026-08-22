@@ -15,7 +15,7 @@ struct ReaderViewState: Observable {
     var title: String = ""
     var isPlaying = false
     var canSpeak = false
-    var isPDF = false
+    var format: PublicationFormat = .unknown
     var error: DescriptiveError?
 }
 
@@ -24,12 +24,12 @@ final class ReaderViewModel {
     var viewProperties: ReaderViewState
     let settings: ReaderSettingsStore
 
-    init(title: String, isPDF: Bool, canSpeak: Bool, settings: ReaderSettingsStore = ReaderSettingsStore()) {
+    init(title: String, format: PublicationFormat, canSpeak: Bool, settings: ReaderSettingsStore = ReaderSettingsStore()) {
         self.settings = settings
         self.viewProperties = ReaderViewState(
             title: title,
-            canSpeak: canSpeak && !isPDF,
-            isPDF: isPDF
+            canSpeak: canSpeak && format == .epub,
+            format: format
         )
     }
 

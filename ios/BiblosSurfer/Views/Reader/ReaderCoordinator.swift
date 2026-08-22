@@ -49,7 +49,7 @@ final class ReaderCoordinator: Coordinator {
                     coverURL: item.coverURL,
                     locatorJSON: item.locatorJSON,
                     progression: item.progression,
-                    isPDF: opened.isPDF,
+                    format: opened.format,
                     folderName: item.folderName
                 )
                 let reader = try ReaderViewController(

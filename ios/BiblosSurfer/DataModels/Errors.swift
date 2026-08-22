@@ -48,6 +48,7 @@ extension Errors {
     enum Publication: DescriptiveError, Equatable {
         case openFailed(title: String, underlying: String)
         case unsupportedForReading(title: String)
+        case unknownFormat(title: String)
         case noNavigator(title: String)
 
         var description: String {
@@ -56,6 +57,8 @@ extension Errors {
                 return "[Publication] Could not open \(title): \(underlying)"
             case .unsupportedForReading(let title):
                 return "[Publication] \(title) parsed, but its format cannot be displayed."
+            case .unknownFormat(let title):
+                return "[Publication] \(title) has an unknown format."
             case .noNavigator(let title):
                 return "[Publication] No reader is available for the format of \(title)."
             }
@@ -65,6 +68,8 @@ extension Errors {
             switch self {
             case .openFailed:
                 return "Could not open the book"
+            case .unknownFormat:
+                return "Unknown format"
             case .unsupportedForReading, .noNavigator:
                 return "Cannot display this book"
             }

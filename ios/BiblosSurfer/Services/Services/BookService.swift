@@ -38,7 +38,7 @@ final class LocalBookService: BookStoreProtocol {
             coverURL: item.coverURL,
             locatorJSON: locatorJSON,
             progression: progression,
-            isPDF: item.isPDF,
+            format: item.format,
             folderName: item.folderName
         )
         items[relativePath] = item
@@ -78,7 +78,7 @@ final class SwiftDataBookStore: BookStoreProtocol {
             fileName: item.fileName,
             title: item.title,
             relativePath: relativePath,
-            isPDF: item.isPDF
+            format: item.format
         )
         stored.id = item.id
         stored.fileName = item.fileName
@@ -88,7 +88,7 @@ final class SwiftDataBookStore: BookStoreProtocol {
         stored.coverFileName = coverFileName ?? stored.coverFileName
         stored.locatorJSON = item.locatorJSON ?? stored.locatorJSON
         stored.progression = item.progression
-        stored.isPDF = item.isPDF
+        stored.format = item.format
         stored.folderName = item.folderName
         context.insert(stored)
         try? context.save()
@@ -127,7 +127,7 @@ private extension StoredBook {
             coverURL: coverFileName.map { coversDirectory.appendingPathComponent($0) },
             locatorJSON: locatorJSON,
             progression: progression,
-            isPDF: isPDF,
+            format: format,
             folderName: folderName
         )
     }

@@ -7,6 +7,23 @@
 
 import Foundation
 
+enum PublicationFormat: String, Hashable, Codable {
+    case epub
+    case pdf
+    case unknown
+
+    init(pathExtension: String) {
+        switch pathExtension.lowercased() {
+        case "epub":
+            self = .epub
+        case "pdf":
+            self = .pdf
+        default:
+            self = .unknown
+        }
+    }
+}
+
 struct LibraryItem: Identifiable, Hashable {
     var id: UUID
     let fileName: String
@@ -16,16 +33,16 @@ struct LibraryItem: Identifiable, Hashable {
     let coverURL: URL?
     let locatorJSON: String?
     let progression: Double
-    let isPDF: Bool
+    let format: PublicationFormat
     let folderName: String?
 
-    var isEPUB: Bool { !isPDF }
+    var isEPUB: Bool { format == .epub }
+    var isPDF: Bool { format == .pdf }
 }
 
 extension LibraryItem {
     init(fileURL: URL, id: UUID = UUID()) {
         let fileName = fileURL.lastPathComponent
-        let isPDF = fileURL.pathExtension.lowercased() == "pdf"
         self.init(
             id: id,
             fileName: fileName,
@@ -35,7 +52,7 @@ extension LibraryItem {
             coverURL: nil,
             locatorJSON: nil,
             progression: 0,
-            isPDF: isPDF,
+            format: PublicationFormat(pathExtension: fileURL.pathExtension),
             folderName: nil
         )
     }

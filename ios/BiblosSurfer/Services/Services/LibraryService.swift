@@ -120,7 +120,7 @@ final class LibraryService: LibraryServiceProtocol {
             coverURL: coverFileName.map { coversDirectory.appendingPathComponent($0) },
             locatorJSON: existing?.locatorJSON,
             progression: existing?.progression ?? 0,
-            isPDF: opened.isPDF,
+            format: opened.format,
             folderName: existing?.folderName
         )
         bookStore.upsert(item, relativePath: relativePath, coverFileName: coverFileName)
@@ -183,7 +183,7 @@ private extension LibraryItem {
             coverURL: coverURL,
             locatorJSON: locatorJSON,
             progression: progression,
-            isPDF: isPDF,
+            format: format,
             folderName: folderName
         )
     }

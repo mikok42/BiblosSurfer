@@ -33,7 +33,7 @@ final class UITestStubLibraryService: LibraryServiceProtocol {
                 coverURL: nil,
                 locatorJSON: nil,
                 progression: 0,
-                isPDF: false,
+                format: .epub,
                 folderName: nil
             )
         ]

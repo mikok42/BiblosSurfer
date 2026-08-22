@@ -14,7 +14,7 @@ struct OpenedPublication {
     let publication: Publication
     let title: String
     let author: String?
-    let isPDF: Bool
+    let format: PublicationFormat
     let cover: UIImage?
 }
 
@@ -56,12 +56,9 @@ final class PublicationOpeningService: PublicationOpeningServiceProtocol {
                 let author = publication.metadata.authors.first?.name
                     ?? publication.metadata.translators.first?.name
                     ?? publication.metadata.contributors.first?.name
-                let isPDF = publication.conforms(to: .pdf)
-                let supportsReading = isPDF || publication.conforms(to: .epub) || publication.readingOrder.contains(where: {
-                    $0.mediaType?.isHTML == true
-                })
-                guard supportsReading else {
-                    throw Errors.Publication.unsupportedForReading(title: title)
+                let format = publication.format
+                guard format != .unknown else {
+                    throw Errors.Publication.unknownFormat(title: title)
                 }
                 let cover: UIImage?
                 switch await publication.coverFitting(maxSize: CGSize(width: 400, height: 600)) {
@@ -74,7 +71,7 @@ final class PublicationOpeningService: PublicationOpeningServiceProtocol {
                     publication: publication,
                     title: title,
                     author: author,
-                    isPDF: isPDF,
+                    format: format,
                     cover: cover
                 )
             case .failure(let error):
@@ -83,5 +80,17 @@ final class PublicationOpeningService: PublicationOpeningServiceProtocol {
         case .failure(let error):
             throw Errors.Publication.openFailed(title: displayTitle, underlying: String(describing: error))
         }
+    }
+}
+
+extension Publication {
+    var format: PublicationFormat {
+        if conforms(to: .pdf) {
+            return .pdf
+        }
+        if conforms(to: .epub) || readingOrder.contains(where: { $0.mediaType?.isHTML == true }) {
+            return .epub
+        }
+        return .unknown
     }
 }

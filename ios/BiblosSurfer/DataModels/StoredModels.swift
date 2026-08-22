@@ -18,7 +18,7 @@ final class StoredBook {
     var coverFileName: String?
     var locatorJSON: String?
     var progression: Double
-    var isPDF: Bool
+    var format: PublicationFormat = PublicationFormat.unknown
     var folderName: String?
     var importedAt: Date
     @Relationship(deleteRule: .cascade, inverse: \StoredBookmark.book)
@@ -33,7 +33,7 @@ final class StoredBook {
         coverFileName: String? = nil,
         locatorJSON: String? = nil,
         progression: Double = 0,
-        isPDF: Bool,
+        format: PublicationFormat,
         folderName: String? = nil,
         importedAt: Date = Date(),
         bookmarks: [StoredBookmark] = []
@@ -46,7 +46,7 @@ final class StoredBook {
         self.coverFileName = coverFileName
         self.locatorJSON = locatorJSON
         self.progression = progression
-        self.isPDF = isPDF
+        self.format = format
         self.folderName = folderName
         self.importedAt = importedAt
         self.bookmarks = bookmarks
