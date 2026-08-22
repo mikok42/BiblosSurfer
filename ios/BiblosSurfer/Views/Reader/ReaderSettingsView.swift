@@ -11,16 +11,13 @@ import SwiftUI
 
 struct ReaderSettingsView: View {
     @Bindable var viewModel: ReaderViewModel
-    var voices: [TTSVoice]
-    var onChange: () -> Void
-    var onClose: () -> Void
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Reading") {
                     Stepper(
-                        value: BindableSettings(store: viewModel.settings, onChange: onChange).fontSize,
+                        value: BindableSettings(viewModel: viewModel).fontSize,
                         in: 0.7 ... 2.0,
                         step: 0.1
                     ) {
@@ -28,7 +25,7 @@ struct ReaderSettingsView: View {
                     }
                     .accessibilityIdentifier(AccessibilityIdentifiers.Settings.fontSize)
 
-                    Picker("Typeface", selection: BindableSettings(store: viewModel.settings, onChange: onChange).fontFamily) {
+                    Picker("Typeface", selection: BindableSettings(viewModel: viewModel).fontFamily) {
                         Text("Original").tag("Original")
                         Text("Georgia").tag("Georgia")
                         Text("Palatino").tag("Palatino")
@@ -36,29 +33,29 @@ struct ReaderSettingsView: View {
                     }
                     .accessibilityIdentifier(AccessibilityIdentifiers.Settings.fontFamily)
 
-                    Picker("Theme", selection: BindableSettings(store: viewModel.settings, onChange: onChange).theme) {
+                    Picker("Theme", selection: BindableSettings(viewModel: viewModel).theme) {
                         Text("Light").tag(Theme.light)
                         Text("Dark").tag(Theme.dark)
                         Text("Sepia").tag(Theme.sepia)
                     }
                     .accessibilityIdentifier(AccessibilityIdentifiers.Settings.theme)
 
-                    Toggle("Scroll", isOn: BindableSettings(store: viewModel.settings, onChange: onChange).scroll)
+                    Toggle("Scroll", isOn: BindableSettings(viewModel: viewModel).scroll)
                         .accessibilityIdentifier(AccessibilityIdentifiers.Settings.scrollMode)
                 }
 
                 if viewModel.viewProperties.canSpeak {
                     Section("Read aloud") {
-                        Picker("Voice", selection: BindableSettings(store: viewModel.settings, onChange: onChange).voiceIdentifier) {
+                        Picker("Voice", selection: BindableSettings(viewModel: viewModel).voiceIdentifier) {
                             Text("Default").tag(Optional<String>.none)
-                            ForEach(voices, id: \.identifier) { voice in
+                            ForEach(viewModel.availableVoices, id: \.identifier) { voice in
                                 Text(voice.name).tag(Optional(voice.identifier))
                             }
                         }
                         .accessibilityIdentifier(AccessibilityIdentifiers.Settings.voice)
 
                         Slider(
-                            value: BindableSettings(store: viewModel.settings, onChange: onChange).speechRate,
+                            value: BindableSettings(viewModel: viewModel).speechRate,
                             in: AVSpeechUtteranceMinimumSpeechRate ... AVSpeechUtteranceMaximumSpeechRate
                         )
                         .accessibilityIdentifier(AccessibilityIdentifiers.Settings.speechRate)
@@ -68,7 +65,7 @@ struct ReaderSettingsView: View {
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done", action: onClose)
+                    Button("Done", action: viewModel.closeSettings)
                         .accessibilityIdentifier(AccessibilityIdentifiers.Settings.done)
                 }
             }
@@ -77,48 +74,48 @@ struct ReaderSettingsView: View {
 }
 
 private struct BindableSettings {
-    let store: ReaderSettingsStore
-    let onChange: () -> Void
+    let viewModel: ReaderViewModel
+    var store: ReaderSettingsStore { viewModel.settings }
 
     var fontSize: Binding<Double> {
         Binding(
             get: { store.fontSize },
-            set: { store.fontSize = $0; onChange() }
+            set: { store.fontSize = $0; viewModel.settingsDidChange() }
         )
     }
 
     var fontFamily: Binding<String> {
         Binding(
             get: { store.fontFamily },
-            set: { store.fontFamily = $0; onChange() }
+            set: { store.fontFamily = $0; viewModel.settingsDidChange() }
         )
     }
 
     var theme: Binding<Theme> {
         Binding(
             get: { store.theme },
-            set: { store.theme = $0; onChange() }
+            set: { store.theme = $0; viewModel.settingsDidChange() }
         )
     }
 
     var scroll: Binding<Bool> {
         Binding(
             get: { store.scroll },
-            set: { store.scroll = $0; onChange() }
+            set: { store.scroll = $0; viewModel.settingsDidChange() }
         )
     }
 
     var voiceIdentifier: Binding<String?> {
         Binding(
             get: { store.voiceIdentifier },
-            set: { store.voiceIdentifier = $0; onChange() }
+            set: { store.voiceIdentifier = $0; viewModel.settingsDidChange() }
         )
     }
 
     var speechRate: Binding<Float> {
         Binding(
             get: { store.speechRate },
-            set: { store.speechRate = $0; onChange() }
+            set: { store.speechRate = $0; viewModel.settingsDidChange() }
         )
     }
 }

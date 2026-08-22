@@ -11,6 +11,16 @@ import ReadiumNavigator
 import ReadiumShared
 import UIKit
 
+protocol ReaderActions: AnyObject {
+    func playPauseTTS()
+    func stopTTS()
+    func nextUtterance()
+    func previousUtterance()
+    func applyReaderSettings()
+    func closeSettings()
+    func dismissPresentedError()
+}
+
 struct ReaderViewState: Observable {
     var title: String = ""
     var isPlaying = false
@@ -20,9 +30,11 @@ struct ReaderViewState: Observable {
 }
 
 @Observable
-final class ReaderViewModel {
+final class ReaderViewModel: ErrorDismissing {
     var viewProperties: ReaderViewState
     let settings: ReaderSettingsStore
+    weak var actions: ReaderActions?
+    var availableVoices: [TTSVoice] = []
 
     init(title: String, format: PublicationFormat, canSpeak: Bool, settings: ReaderSettingsStore = ReaderSettingsStore()) {
         self.settings = settings
@@ -46,5 +58,34 @@ final class ReaderViewModel {
 
     func presentError(_ error: DescriptiveError) {
         viewProperties.error = error
+    }
+
+    func playPause() {
+        actions?.playPauseTTS()
+    }
+
+    func stopReading() {
+        actions?.stopTTS()
+    }
+
+    func nextUtterance() {
+        actions?.nextUtterance()
+    }
+
+    func previousUtterance() {
+        actions?.previousUtterance()
+    }
+
+    func settingsDidChange() {
+        actions?.applyReaderSettings()
+    }
+
+    func closeSettings() {
+        actions?.closeSettings()
+    }
+
+    func dismissError() {
+        viewProperties.error = nil
+        actions?.dismissPresentedError()
     }
 }

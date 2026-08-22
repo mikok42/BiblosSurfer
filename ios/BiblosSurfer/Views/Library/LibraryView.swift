@@ -10,19 +10,15 @@ import UniformTypeIdentifiers
 
 struct LibraryView: View {
     @State private var viewModel: LibraryViewModel
-    var onSelect: (LibraryItem) -> Void
     @State private var isImporterPresented = false
 
-    init(viewModel: LibraryViewModel, onSelect: @escaping (LibraryItem) -> Void) {
+    init(viewModel: LibraryViewModel) {
         _viewModel = State(initialValue: viewModel)
-        self.onSelect = onSelect
     }
 
     var body: some View {
         if let error = viewModel.viewProperties.error {
-            ErrorView(error: error) {
-                Task { await viewModel.reload() }
-            }
+            ErrorView(error: error, handler: viewModel)
         } else {
             libraryContent
                 .navigationTitle("Library")
@@ -81,9 +77,7 @@ struct LibraryView: View {
                 ) {
                     ForEach(viewModel.viewProperties.items) { item in
                         Button {
-                            if let item = viewModel.itemToOpen(item) {
-                                onSelect(item)
-                            }
+                            viewModel.open(item)
                         } label: {
                             VStack(alignment: .leading, spacing: StyleConstants.tightSpacing) {
                                 ZStack(alignment: .bottom) {
@@ -119,6 +113,6 @@ struct LibraryView: View {
 
 #Preview("Stub library") {
     NavigationStack {
-        LibraryView(viewModel: LibraryViewModel(libraryService: MockServiceProvider().libraryService), onSelect: { _ in })
+        LibraryView(viewModel: LibraryViewModel(libraryService: MockServiceProvider().libraryService))
     }
 }

@@ -75,9 +75,15 @@ final class ReaderCoordinator: Coordinator {
     }
 
     private func present(error: DescriptiveError) {
-        let view = ErrorView(error: error) { [weak self] in
-            self?.navigationController.popViewController(animated: true)
-        }
+        let viewModel = ErrorViewModel(error: error)
+        viewModel.router = self
+        let view = ErrorView(error: error, handler: viewModel)
         navigationController.pushViewController(UIHostingController(rootView: view), animated: true)
+    }
+}
+
+extension ReaderCoordinator: ErrorRouting {
+    func dismissError() {
+        navigationController.popViewController(animated: true)
     }
 }

@@ -8,6 +8,10 @@
 import Foundation
 import Observation
 
+protocol LibraryRouting: AnyObject {
+    func openBook(_ item: LibraryItem)
+}
+
 struct LibraryViewState: Observable {
     var items: [LibraryItem] = []
     var isLoading = true
@@ -15,8 +19,9 @@ struct LibraryViewState: Observable {
 }
 
 @Observable
-final class LibraryViewModel {
+final class LibraryViewModel: ErrorDismissing {
     private let libraryService: LibraryServiceProtocol
+    weak var router: LibraryRouting?
 
     var viewProperties: LibraryViewState
 
@@ -48,9 +53,13 @@ final class LibraryViewModel {
         }
     }
 
+    func open(_ item: LibraryItem) {
+        router?.openBook(item)
+    }
+
     @MainActor
-    func itemToOpen(_ item: LibraryItem) -> LibraryItem? {
-        item
+    func dismissError() {
+        Task { await reload() }
     }
 
     @MainActor

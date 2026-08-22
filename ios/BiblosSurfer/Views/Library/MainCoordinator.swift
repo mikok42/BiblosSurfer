@@ -23,9 +23,8 @@ class MainCoordinator: Coordinator {
 
     func start() {
         let viewModel = LibraryViewModel(libraryService: serviceProvider.libraryService)
-        let view = LibraryView(viewModel: viewModel) { [weak self] item in
-            self?.showBook(item)
-        }
+        viewModel.router = self
+        let view = LibraryView(viewModel: viewModel)
         navigationController.pushViewController(
             UIHostingController(rootView: view),
             animated: false
@@ -48,5 +47,11 @@ class MainCoordinator: Coordinator {
         Task { @MainActor in
             _ = try? await serviceProvider.libraryService.importBook(from: url)
         }
+    }
+}
+
+extension MainCoordinator: LibraryRouting {
+    func openBook(_ item: LibraryItem) {
+        showBook(item)
     }
 }

@@ -5,15 +5,38 @@
 //  Created by Mikołaj Linczewski on 21/08/2026.
 //
 
+import Observation
 import SwiftUI
+
+protocol ErrorDismissing: AnyObject {
+    func dismissError()
+}
+
+protocol ErrorRouting: AnyObject {
+    func dismissError()
+}
+
+@Observable
+final class ErrorViewModel: ErrorDismissing {
+    let error: DescriptiveError
+    weak var router: ErrorRouting?
+
+    init(error: DescriptiveError) {
+        self.error = error
+    }
+
+    func dismissError() {
+        router?.dismissError()
+    }
+}
 
 struct ErrorView: View {
     private let error: DescriptiveError
-    private let onDismiss: (() -> Void)?
+    private let handler: ErrorDismissing?
 
-    init(error: DescriptiveError, onDismiss: (() -> Void)? = nil) {
+    init(error: DescriptiveError, handler: ErrorDismissing? = nil) {
         self.error = error
-        self.onDismiss = onDismiss
+        self.handler = handler
     }
 
     var body: some View {
@@ -30,7 +53,7 @@ struct ErrorView: View {
                 .multilineTextAlignment(.center)
                 .accessibilityIdentifier(AccessibilityIdentifiers.Error.description)
             Button("Dismiss") {
-                onDismiss?()
+                handler?.dismissError()
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier(AccessibilityIdentifiers.Error.dismiss)

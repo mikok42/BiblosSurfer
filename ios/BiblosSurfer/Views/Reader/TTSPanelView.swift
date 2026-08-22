@@ -9,19 +9,15 @@ import SwiftUI
 
 struct TTSPanelView: View {
     @Bindable var viewModel: ReaderViewModel
-    var onPlayPause: () -> Void
-    var onStop: () -> Void
-    var onNext: () -> Void
-    var onPrevious: () -> Void
 
     var body: some View {
         HStack(spacing: StyleConstants.stackSpacing) {
-            Button(action: onPrevious) {
+            Button(action: viewModel.previousUtterance) {
                 Image(systemName: "backward.fill")
             }
             .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsPrevious)
 
-            Button(action: onPlayPause) {
+            Button(action: viewModel.playPause) {
                 Image(systemName: viewModel.viewProperties.isPlaying ? "pause.fill" : "play.fill")
             }
             .accessibilityIdentifier(
@@ -30,12 +26,12 @@ struct TTSPanelView: View {
                     : AccessibilityIdentifiers.Reader.ttsPlay
             )
 
-            Button(action: onStop) {
+            Button(action: viewModel.stopReading) {
                 Image(systemName: "stop.fill")
             }
             .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsStop)
 
-            Button(action: onNext) {
+            Button(action: viewModel.nextUtterance) {
                 Image(systemName: "forward.fill")
             }
             .accessibilityIdentifier(AccessibilityIdentifiers.Reader.ttsNext)

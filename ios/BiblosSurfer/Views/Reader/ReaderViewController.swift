@@ -85,11 +85,13 @@ final class ReaderViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
         pdfNavigator?.delegate = self
         epubNavigator?.delegate = self
+        viewModel.actions = self
 
         if viewModel.viewProperties.canSpeak {
             let tts = TTSService(publication: publication, settings: settings, bookTitle: item.title)
             tts?.delegate = self
             self.ttsService = tts
+            viewModel.availableVoices = tts?.availableVoices ?? []
         }
     }
 
@@ -133,40 +135,17 @@ final class ReaderViewController: UIViewController {
     }
 
     @objc private func openSettings() {
-        let settingsView = ReaderSettingsView(
-            viewModel: viewModel,
-            voices: ttsService?.availableVoices ?? [],
-            onChange: { [weak self] in
-                self?.applyReaderSettings()
-            },
-            onClose: { [weak self] in
-                self?.dismiss(animated: true)
-            }
-        )
+        viewModel.availableVoices = ttsService?.availableVoices ?? []
+        let settingsView = ReaderSettingsView(viewModel: viewModel)
         let host = UIHostingController(rootView: settingsView)
         host.modalPresentationStyle = .formSheet
         present(host, animated: true)
     }
 
-    private func applyReaderSettings() {
-        if let epubNavigator {
-            epubNavigator.submitPreferences(viewModel.settings.epubPreferences())
-        }
-    }
-
     private func installTTSPanelIfNeeded() {
         guard ttsPanelHost == nil else { return }
         let host = UIHostingController(
-            rootView: TTSPanelView(
-                viewModel: viewModel,
-                onPlayPause: { [weak self] in self?.ttsService?.pauseOrResume() },
-                onStop: { [weak self] in
-                    self?.ttsService?.stop()
-                    self?.removeTTSPanel()
-                },
-                onNext: { [weak self] in self?.ttsService?.next() },
-                onPrevious: { [weak self] in self?.ttsService?.previous() }
-            )
+            rootView: TTSPanelView(viewModel: viewModel)
         )
         host.view.backgroundColor = .clear
         addChild(host)
@@ -248,23 +227,45 @@ extension ReaderViewController: TTSServiceDelegate {
                 followSpokenRange(range)
             }
         }
-        ttsPanelHost?.rootView = TTSPanelView(
-            viewModel: viewModel,
-            onPlayPause: { [weak self] in self?.ttsService?.pauseOrResume() },
-            onStop: { [weak self] in
-                self?.ttsService?.stop()
-                self?.removeTTSPanel()
-            },
-            onNext: { [weak self] in self?.ttsService?.next() },
-            onPrevious: { [weak self] in self?.ttsService?.previous() }
-        )
+        ttsPanelHost?.rootView = TTSPanelView(viewModel: viewModel)
     }
 
     func ttsService(_ service: TTSService, didFail error: DescriptiveError) {
         viewModel.presentError(error)
-        let errorView = ErrorView(error: error) { [weak self] in
-            self?.dismiss(animated: true)
-        }
+        let errorView = ErrorView(error: error, handler: viewModel)
         present(UIHostingController(rootView: errorView), animated: true)
+    }
+}
+
+extension ReaderViewController: ReaderActions {
+    func playPauseTTS() {
+        ttsService?.pauseOrResume()
+    }
+
+    func stopTTS() {
+        ttsService?.stop()
+        removeTTSPanel()
+    }
+
+    func nextUtterance() {
+        ttsService?.next()
+    }
+
+    func previousUtterance() {
+        ttsService?.previous()
+    }
+
+    func applyReaderSettings() {
+        if let epubNavigator {
+            epubNavigator.submitPreferences(viewModel.settings.epubPreferences())
+        }
+    }
+
+    func closeSettings() {
+        dismiss(animated: true)
+    }
+
+    func dismissPresentedError() {
+        dismiss(animated: true)
     }
 }
