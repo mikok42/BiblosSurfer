@@ -120,7 +120,6 @@ final class ReaderViewController: UIViewController {
     @objc func readFromSelection() {
         guard viewModel.viewProperties.canSpeak else { return }
         let locator = epubNavigator?.currentSelection?.locator
-        viewModel.viewProperties.showTTSControls = true
         installTTSPanelIfNeeded()
         ttsService?.start(from: locator)
         epubNavigator?.clearSelection()
@@ -180,7 +179,6 @@ final class ReaderViewController: UIViewController {
         ttsPanelHost?.view.removeFromSuperview()
         ttsPanelHost?.removeFromParent()
         ttsPanelHost = nil
-        viewModel.viewProperties.showTTSControls = false
         epubNavigator?.apply(decorations: [], in: "tts")
     }
 

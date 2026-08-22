@@ -24,8 +24,6 @@ final class TTSService: NSObject {
     private let bookTitle: String
     weak var delegate: TTSServiceDelegate?
 
-    var canSpeak: Bool { true }
-
     var availableVoices: [TTSVoice] {
         synthesizer.availableVoices
     }

@@ -51,8 +51,8 @@ xcodebuild test -scheme BiblosSurfer \
   -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-UI tests launch the app with `-UITestStub`, which swaps the real library for a bundled sample EPUB
-so the tests never depend on files on the device.
+UI tests launch the app with `-UITestStub`, which swaps the real library for the bundled Genesis
+EPUB (`genesis-ksiega-rodzaju-bereszit.epub`) so the tests never depend on files on the device.
 
 ## Format support
 

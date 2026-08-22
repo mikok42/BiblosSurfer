@@ -19,7 +19,7 @@ final class LibraryServiceTests: XCTestCase {
         service = LibraryService(
             booksDirectory: directory,
             coversDirectory: covers,
-            sampleBookURL: TestFixtures.sampleBookURL
+            bundledBookURL: TestFixtures.sampleBookURL
         )
     }
 
@@ -27,13 +27,32 @@ final class LibraryServiceTests: XCTestCase {
         try? FileManager.default.removeItem(at: directory)
     }
 
-    func testEmptyDirectoryIsSeededWithSampleBook() async throws {
+    func testBundledBookAppearsAlongsideUserBooks() async throws {
+        let leftover = directory.appendingPathComponent("The Sample Voyage.epub")
+        XCTAssertTrue(FileManager.default.createFile(atPath: leftover.path, contents: Data("old-mock".utf8)))
+
+        let items = try await service.loadItems()
+        let titles = Set(items.map(\.title))
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: leftover.path))
+        XCTAssertTrue(titles.contains(TestFixtures.sampleBookTitle))
+        XCTAssertTrue(titles.contains("The Sample Voyage"))
+        XCTAssertEqual(
+            items.first { $0.title == TestFixtures.sampleBookTitle }?.fileURL,
+            TestFixtures.sampleBookURL
+        )
+    }
+
+    func testBundledBookIsListedFromTheBundleWithoutCopying() async throws {
         let items = try await service.loadItems()
 
         XCTAssertEqual(items.count, 1)
-        XCTAssertEqual(items.first?.title, "The Sample Voyage")
+        XCTAssertEqual(items.first?.title, TestFixtures.sampleBookTitle)
         XCTAssertEqual(items.first?.isEPUB, true)
-        XCTAssertTrue(FileManager.default.fileExists(atPath: try XCTUnwrap(items.first?.fileURL.path)))
+        XCTAssertEqual(items.first?.fileURL, TestFixtures.sampleBookURL)
+        let copiedBooks = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .filter { ["epub", "pdf"].contains($0.pathExtension.lowercased()) }
+        XCTAssertEqual(copiedBooks.count, 0)
     }
 
     func testNonBookFilesAreNotListed() async throws {
@@ -43,7 +62,7 @@ final class LibraryServiceTests: XCTestCase {
 
         let items = try await service.loadItems()
 
-        XCTAssertEqual(items.map(\.title), ["The Sample Voyage"])
+        XCTAssertEqual(items.map(\.title), [TestFixtures.sampleBookTitle])
     }
 
     func testImportingUnsupportedFormatThrows() async {
@@ -75,6 +94,7 @@ final class LibraryServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: imported.fileURL.path))
 
         let items = try await service.loadItems()
-        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(items.count, 1)
+        XCTAssertTrue(items.contains { $0.fileURL.path.hasPrefix(directory.path) })
     }
 }

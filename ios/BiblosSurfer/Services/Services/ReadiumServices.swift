@@ -54,6 +54,8 @@ final class PublicationOpeningService: PublicationOpeningServiceProtocol {
             case .success(let publication):
                 let title = publication.metadata.title ?? displayTitle
                 let author = publication.metadata.authors.first?.name
+                    ?? publication.metadata.translators.first?.name
+                    ?? publication.metadata.contributors.first?.name
                 let isPDF = publication.conforms(to: .pdf)
                 let supportsReading = isPDF || publication.conforms(to: .epub) || publication.readingOrder.contains(where: {
                     $0.mediaType?.isHTML == true

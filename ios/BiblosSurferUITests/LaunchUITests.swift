@@ -22,8 +22,8 @@ final class LaunchUITests: XCTestCase {
     }
 
     func testOpeningSampleBookShowsItsText() {
-        let cell = app.buttons["library.cell.The Sample Voyage"]
-        XCTAssertTrue(cell.waitForExistence(timeout: 8), "Sample book tile should appear on the library")
+        let cell = app.buttons["library.cell.Genesis. Księga Rodzaju. Bereszit"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 8), "Genesis tile should appear on the library")
         attachScreenshot(of: app, named: "library")
         cell.tap()
 

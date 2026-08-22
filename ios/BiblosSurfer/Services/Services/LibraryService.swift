@@ -17,7 +17,7 @@ final class LibraryService: LibraryServiceProtocol {
     private let fileManager: FileManager
     private let booksDirectory: URL
     private let coversDirectory: URL
-    private let sampleBookURL: URL?
+    private let bundledBookURL: URL?
     private let opener: PublicationOpeningServiceProtocol
     private let bookStore: BookStoreProtocol
 
@@ -25,27 +25,28 @@ final class LibraryService: LibraryServiceProtocol {
         fileManager: FileManager = .default,
         booksDirectory: URL? = nil,
         coversDirectory: URL? = nil,
-        sampleBookURL: URL? = Bundle.main.url(forResource: "SampleBook", withExtension: "epub"),
+        bundledBookURL: URL? = Bundle.main.url(forResource: "genesis-ksiega-rodzaju-bereszit", withExtension: "epub"),
         opener: PublicationOpeningServiceProtocol = PublicationOpeningService(),
         bookStore: BookStoreProtocol = LocalBookService()
     ) {
         self.fileManager = fileManager
         self.booksDirectory = booksDirectory ?? fileManager.defaultBooksDirectory
         self.coversDirectory = coversDirectory ?? fileManager.defaultCoversDirectory
-        self.sampleBookURL = sampleBookURL
+        self.bundledBookURL = bundledBookURL
         self.opener = opener
         self.bookStore = bookStore
     }
 
     func loadItems() async throws -> [LibraryItem] {
         try ensureDirectories()
-        try await seedIfNeeded()
-        try await ingestUntrackedFiles()
-        return try listedBookURLs()
+        let urls = try libraryFileURLs()
+        for url in urls where bookStore.book(atRelativePath: url.lastPathComponent) == nil {
+            _ = try? await catalog(fileURL: url)
+        }
+        return urls
             .map { url in
-                let relativePath = url.lastPathComponent
-                if let stored = bookStore.book(atRelativePath: relativePath) {
-                    return stored
+                if let stored = bookStore.book(atRelativePath: url.lastPathComponent) {
+                    return stored.replacingFileURL(url)
                 }
                 return LibraryItem(fileURL: url)
             }
@@ -78,21 +79,13 @@ final class LibraryService: LibraryServiceProtocol {
         return try await catalog(fileURL: destination)
     }
 
-    private func seedIfNeeded() async throws {
-        let existing = try listedBookURLs()
-        guard existing.isEmpty else { return }
-        if let sampleBookURL {
-            _ = try await importBook(from: sampleBookURL)
+    private func libraryFileURLs() throws -> [URL] {
+        var urls = try listedBookURLs()
+        if let bundledBookURL,
+           !urls.contains(where: { $0.lastPathComponent == bundledBookURL.lastPathComponent }) {
+            urls.append(bundledBookURL)
         }
-    }
-
-    private func ingestUntrackedFiles() async throws {
-        for url in try listedBookURLs() {
-            let relativePath = url.lastPathComponent
-            if bookStore.book(atRelativePath: relativePath) == nil {
-                _ = try? await catalog(fileURL: url)
-            }
-        }
+        return urls
     }
 
     private func catalog(fileURL: URL) async throws -> LibraryItem {
@@ -176,6 +169,23 @@ final class LibraryService: LibraryServiceProtocol {
             suffix += 1
         }
         return destination
+    }
+}
+
+private extension LibraryItem {
+    func replacingFileURL(_ fileURL: URL) -> LibraryItem {
+        LibraryItem(
+            id: id,
+            fileName: fileName,
+            title: title,
+            author: author,
+            fileURL: fileURL,
+            coverURL: coverURL,
+            locatorJSON: locatorJSON,
+            progression: progression,
+            isPDF: isPDF,
+            folderName: folderName
+        )
     }
 }
 

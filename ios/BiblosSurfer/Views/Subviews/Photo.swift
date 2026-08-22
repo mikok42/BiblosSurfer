@@ -22,14 +22,6 @@ struct Photo: View {
         self.placeholderSystemImage = placeholderSystemImage
     }
 
-    init(urlString: String?, isLoading: Bool = false, placeholderSystemImage: String = "book.closed") {
-        self.init(
-            url: urlString.flatMap { URL(string: $0) },
-            isLoading: isLoading,
-            placeholderSystemImage: placeholderSystemImage
-        )
-    }
-
     var body: some View {
         Color.clear
             .overlay {

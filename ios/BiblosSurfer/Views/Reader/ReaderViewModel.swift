@@ -14,11 +14,9 @@ import UIKit
 struct ReaderViewState: Observable {
     var title: String = ""
     var isPlaying = false
-    var showTTSControls = false
     var canSpeak = false
     var isPDF = false
     var error: DescriptiveError?
-    var showSettings = false
 }
 
 @Observable
@@ -39,13 +37,10 @@ final class ReaderViewModel {
         switch ttsState {
         case .stopped:
             viewProperties.isPlaying = false
-            viewProperties.showTTSControls = false
         case .paused:
             viewProperties.isPlaying = false
-            viewProperties.showTTSControls = true
         case .playing:
             viewProperties.isPlaying = true
-            viewProperties.showTTSControls = true
         }
     }
 
