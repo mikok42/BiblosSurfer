@@ -1,0 +1,35 @@
+.DS_Store
+
+## Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+## Swift Package Manager
+.build/
+.swiftpm/
+
+## Fastlane / signing
+*.mobileprovision
+*.p12
+*.p8
+*.cer
+
+## Android (placeholder until the port lands)
+android/.gradle/
+android/build/
+android/local.properties
+android/.idea/workspace.xml
+android/app/build/
+
+## Node (tooling scripts)
+node_modules/

@@ -1,0 +1,38 @@
+---
+description: Dual-platform parity — changes on one side require the other
+alwaysApply: true
+---
+
+# Cross-platform parity (ios + android)
+
+This monorepo is intended to ship the same product on **iOS** (`ios/`) and **Android**
+(`android/`). Android has not started yet; the directory exists so the port never requires moving
+iOS files.
+
+## Rule
+A behavior, API, analytics, or user-visible UI change in one platform **requires the matching change
+in the other**, or an explicit PR note explaining why parity is deferred.
+
+Timing of the Android update is governed by `ios-first.mdc` (iOS first; port after iOS commit or
+explicit ask). While `android/` is empty, every iOS change defers parity by definition — no note
+needed until the port lands.
+
+## Shared seams (keep names aligned)
+LibraryService → PublicationOpener → ViewModel → UI + Coordinator + AnalyticsTimer + Errors
+TTSService → Navigator decorations → reading position store
+
+## Product contracts that must stay aligned
+- Reading position is a Readium `Locator` serialized to JSON. The JSON is wire-compatible between
+  the Swift and Kotlin toolkits — same keys (`href`, `type`, `locations`, `text`). Never invent a
+  private position format.
+- Position writes are throttled, not fired per page turn.
+- TTS starts from the locator of the current text selection and continues across chapters until
+  explicitly stopped.
+- The spoken sentence is highlighted, and pages turn from the spoken word range.
+- TTS and highlighting are offered for EPUB only. Both toolkits lack them for PDF; hide the controls
+  rather than failing at runtime.
+- Imported books are copied into app storage; the library structure lives in the database, not in
+  the filesystem layout.
+- Analytics events carry `duration_ms`: `import_book`, `opening_publication`, `tts_start_latency`.
+- Accessibility ids use dotted `screen.element` names and must match across platforms
+  (`.accessibilityIdentifier` on iOS, `Modifier.testTag` on Android).
