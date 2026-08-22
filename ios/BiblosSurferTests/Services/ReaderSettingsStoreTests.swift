@@ -23,4 +23,46 @@ final class ReaderSettingsStoreTests: XCTestCase {
         XCTAssertEqual(preferences.fontFamily?.rawValue, "Georgia")
         XCTAssertEqual(preferences.publisherStyles, false)
     }
+
+    func testTTSSettingsUseEngineDefaults() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = ReaderSettingsStore(defaults: defaults)
+
+        XCTAssertEqual(store.pitchMultiplier, 1.0)
+        XCTAssertEqual(store.speechVolume, 1.0)
+        XCTAssertEqual(store.preUtteranceDelay, 0)
+        XCTAssertEqual(store.postUtteranceDelay, 0)
+        XCTAssertNil(store.defaultLanguage)
+        XCTAssertEqual(store.chunkUnit, .sentence)
+        XCTAssertFalse(store.useSystemSpeechSettings)
+    }
+
+    func testTTSSettingsRoundTrip() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = ReaderSettingsStore(defaults: defaults)
+        store.pitchMultiplier = 1.4
+        store.speechVolume = 0.6
+        store.preUtteranceDelay = 0.3
+        store.postUtteranceDelay = 0.5
+        store.defaultLanguage = "pl"
+        store.chunkUnit = .word
+        store.useSystemSpeechSettings = true
+
+        XCTAssertEqual(store.pitchMultiplier, 1.4)
+        XCTAssertEqual(store.speechVolume, 0.6)
+        XCTAssertEqual(store.preUtteranceDelay, 0.3, accuracy: 0.001)
+        XCTAssertEqual(store.postUtteranceDelay, 0.5, accuracy: 0.001)
+        XCTAssertEqual(store.defaultLanguage, "pl")
+        XCTAssertEqual(store.chunkUnit, .word)
+        XCTAssertTrue(store.useSystemSpeechSettings)
+    }
+}
+
+final class TTSHighlightMatchingTests: XCTestCase {
+    func testCollapsedWhitespaceOverlapsSelection() {
+        let sentence = "  History of Egypt,\nChaldæa, Syria.  "
+        XCTAssertTrue(sentence.overlapsCollapsedText("Egypt, Chaldæa"))
+        XCTAssertTrue("Egypt".overlapsCollapsedText(sentence))
+        XCTAssertFalse(sentence.overlapsCollapsedText("Babylonia"))
+    }
 }

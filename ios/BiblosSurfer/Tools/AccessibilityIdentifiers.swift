@@ -39,8 +39,16 @@ enum AccessibilityIdentifiers {
         static let fontFamily = "settings.fontFamily"
         static let theme = "settings.theme"
         static let scrollMode = "settings.scrollMode"
+        static let tts = "settings.tts"
         static let voice = "settings.voice"
         static let speechRate = "settings.speechRate"
+        static let pitch = "settings.pitch"
+        static let volume = "settings.volume"
+        static let preUtteranceDelay = "settings.preUtteranceDelay"
+        static let postUtteranceDelay = "settings.postUtteranceDelay"
+        static let language = "settings.language"
+        static let chunkUnit = "settings.chunkUnit"
+        static let systemSpeech = "settings.systemSpeech"
         static let done = "settings.done"
     }
 

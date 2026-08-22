@@ -19,7 +19,7 @@ final class LibraryServiceTests: XCTestCase {
         service = LibraryService(
             booksDirectory: directory,
             coversDirectory: covers,
-            bundledBookURL: TestFixtures.sampleBookURL
+            bundledBookURLs: [TestFixtures.sampleBookURL].compactMap { $0 }
         )
     }
 

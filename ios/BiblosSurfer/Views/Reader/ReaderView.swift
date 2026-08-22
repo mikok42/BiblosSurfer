@@ -17,7 +17,7 @@ final class ReaderView: UIView {
         navigatorView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(navigatorView)
         NSLayoutConstraint.activate([
-            navigatorView.topAnchor.constraint(equalTo: topAnchor),
+            navigatorView.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
             navigatorView.leadingAnchor.constraint(equalTo: leadingAnchor),
             navigatorView.trailingAnchor.constraint(equalTo: trailingAnchor),
             navigatorView.bottomAnchor.constraint(equalTo: bottomAnchor)

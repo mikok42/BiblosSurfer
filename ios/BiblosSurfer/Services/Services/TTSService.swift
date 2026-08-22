@@ -22,6 +22,8 @@ final class TTSService: NSObject {
     private let engine: AVTTSEngine
     private let settings: ReaderSettingsStore
     private let bookTitle: String
+    private let startAnchor: TTSStartAnchor
+    private let publicationLanguage: Language?
     weak var delegate: TTSServiceDelegate?
 
     var availableVoices: [TTSVoice] {
@@ -30,12 +32,22 @@ final class TTSService: NSObject {
 
     init?(publication: Publication, settings: ReaderSettingsStore, bookTitle: String) {
         let engine = AVTTSEngine()
+        let startAnchor = TTSStartAnchor()
         guard let synthesizer = PublicationSpeechSynthesizer(
             publication: publication,
             config: PublicationSpeechSynthesizer.Configuration(
+                defaultLanguage: settings.defaultLanguage.map { Language(code: .bcp47($0)) },
                 voiceIdentifier: settings.voiceIdentifier
             ),
-            engineFactory: { engine }
+            audioSessionConfig: AudioSession.Configuration(
+                category: .playback,
+                mode: .default,
+                routeSharingPolicy: .longFormAudio
+            ),
+            engineFactory: { engine },
+            tokenizerFactory: { defaultLanguage in
+                startAnchor.tokenizer(defaultLanguage: defaultLanguage, chunkUnit: settings.chunkUnit.textUnit)
+            }
         ) else {
             return nil
         }
@@ -43,10 +55,13 @@ final class TTSService: NSObject {
         self.synthesizer = synthesizer
         self.settings = settings
         self.bookTitle = bookTitle
+        self.startAnchor = startAnchor
+        self.publicationLanguage = publication.metadata.language
         super.init()
         engine.delegate = self
         synthesizer.delegate = self
         configureRemoteCommands()
+        applySettings()
     }
 
     deinit {
@@ -58,9 +73,18 @@ final class TTSService: NSObject {
     }
 
     func start(from locator: Locator?) {
-        synthesizer.config.voiceIdentifier = settings.voiceIdentifier
+        applySettings()
+        let highlight = locator?.text.highlight?.collapsedWhitespace
+        startAnchor.highlight = (highlight?.isEmpty == false) ? highlight : nil
         synthesizer.start(from: locator)
         updateNowPlaying(isPlaying: true)
+    }
+
+    func applySettings() {
+        let language = settings.defaultLanguage.map { Language(code: .bcp47($0)) } ?? publicationLanguage
+        synthesizer.config.defaultLanguage = language
+        synthesizer.config.voiceIdentifier = settings.voiceIdentifier
+            ?? availableVoices.preferredAppleVoice(for: language)?.identifier
     }
 
     func stop() {
@@ -124,7 +148,7 @@ final class TTSService: NSObject {
             self?.previous()
             return .success
         }
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio, options: [])
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
         try? AVAudioSession.sharedInstance().setActive(true)
     }
 
@@ -161,6 +185,63 @@ extension TTSService: PublicationSpeechSynthesizerDelegate {
 
 extension TTSService: AVTTSEngineDelegate {
     func avTTSEngine(_ engine: AVTTSEngine, didCreateUtterance utterance: AVSpeechUtterance) {
+        utterance.prefersAssistiveTechnologySettings = settings.useSystemSpeechSettings
+        utterance.preUtteranceDelay = settings.preUtteranceDelay
+        utterance.postUtteranceDelay = settings.postUtteranceDelay
+        guard !settings.useSystemSpeechSettings else { return }
         utterance.rate = settings.speechRate
+        utterance.pitchMultiplier = settings.pitchMultiplier
+        utterance.volume = settings.speechVolume
+    }
+}
+
+/// Skips utterances that sit before a "read from here" highlight. Readium's
+/// selection locator is the current *page*, so TTS would otherwise start at
+/// the top of the resource.
+private final class TTSStartAnchor {
+    var highlight: String?
+
+    func tokenizer(defaultLanguage: Language?, chunkUnit: TextUnit) -> ContentTokenizer {
+        let tokenize = makeTextContentTokenizer(
+            defaultLanguage: defaultLanguage,
+            contextSnippetLength: 50,
+            textTokenizerFactory: { language in
+                makeDefaultTextTokenizer(unit: chunkUnit, language: language)
+            }
+        )
+        return { [weak self] element in
+            let chunks = try tokenize(element)
+            guard let highlight = self?.highlight, !highlight.isEmpty else {
+                return chunks
+            }
+            if let index = chunks.firstIndex(where: { $0.matchesTTSHighlight(highlight) }) {
+                self?.highlight = nil
+                return Array(chunks[index...])
+            }
+            return []
+        }
+    }
+}
+
+extension ContentElement {
+    func matchesTTSHighlight(_ highlight: String) -> Bool {
+        spokenText.overlapsCollapsedText(highlight)
+    }
+
+    var spokenText: String {
+        (self as? TextualContentElement)?.text ?? locator.text.highlight ?? ""
+    }
+}
+
+extension String {
+    var collapsedWhitespace: String {
+        split { $0.isWhitespace || $0.isNewline }.joined(separator: " ")
+    }
+
+    func overlapsCollapsedText(_ other: String) -> Bool {
+        let haystack = collapsedWhitespace
+        let needle = other.collapsedWhitespace
+        guard !haystack.isEmpty, !needle.isEmpty else { return false }
+        return haystack.localizedStandardContains(needle) || needle.localizedStandardContains(haystack)
     }
 }

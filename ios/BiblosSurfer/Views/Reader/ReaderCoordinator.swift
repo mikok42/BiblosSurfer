@@ -82,7 +82,7 @@ final class ReaderCoordinator: Coordinator {
     }
 }
 
-extension ReaderCoordinator: ErrorRouting {
+extension ReaderCoordinator: ErrorDismissing {
     func dismissError() {
         navigationController.popViewController(animated: true)
     }

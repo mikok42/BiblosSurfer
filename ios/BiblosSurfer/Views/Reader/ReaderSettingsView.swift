@@ -5,12 +5,12 @@
 //  Created by Mikołaj Linczewski on 21/08/2026.
 //
 
-import AVFoundation
 import ReadiumNavigator
 import SwiftUI
 
 struct ReaderSettingsView: View {
     @Bindable var viewModel: ReaderViewModel
+    @State private var isTTSPresented = false
 
     var body: some View {
         NavigationStack {
@@ -45,24 +45,21 @@ struct ReaderSettingsView: View {
                 }
 
                 if viewModel.viewProperties.canSpeak {
-                    Section("Read aloud") {
-                        Picker("Voice", selection: BindableSettings(viewModel: viewModel).voiceIdentifier) {
-                            Text("Default").tag(Optional<String>.none)
-                            ForEach(viewModel.availableVoices, id: \.identifier) { voice in
-                                Text(voice.name).tag(Optional(voice.identifier))
-                            }
+                    Section {
+                        NavigationLink {
+                            TTSSettingsView(viewModel: viewModel)
+                        } label: {
+                            Label("Text to speech", systemImage: "speaker.wave.2")
                         }
-                        .accessibilityIdentifier(AccessibilityIdentifiers.Settings.voice)
-
-                        Slider(
-                            value: BindableSettings(viewModel: viewModel).speechRate,
-                            in: AVSpeechUtteranceMinimumSpeechRate ... AVSpeechUtteranceMaximumSpeechRate
-                        )
-                        .accessibilityIdentifier(AccessibilityIdentifiers.Settings.speechRate)
+                        .accessibilityIdentifier(AccessibilityIdentifiers.Settings.tts)
                     }
                 }
             }
             .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $isTTSPresented) {
+                TTSSettingsView(viewModel: viewModel)
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: viewModel.closeSettings)
@@ -73,7 +70,7 @@ struct ReaderSettingsView: View {
     }
 }
 
-private struct BindableSettings {
+struct BindableSettings {
     let viewModel: ReaderViewModel
     var store: ReaderSettingsStore { viewModel.settings }
 
@@ -105,6 +102,13 @@ private struct BindableSettings {
         )
     }
 
+    var defaultLanguage: Binding<String?> {
+        Binding(
+            get: { store.defaultLanguage },
+            set: { viewModel.selectTTSLanguage($0) }
+        )
+    }
+
     var voiceIdentifier: Binding<String?> {
         Binding(
             get: { store.voiceIdentifier },
@@ -116,6 +120,48 @@ private struct BindableSettings {
         Binding(
             get: { store.speechRate },
             set: { store.speechRate = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var pitchMultiplier: Binding<Float> {
+        Binding(
+            get: { store.pitchMultiplier },
+            set: { store.pitchMultiplier = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var speechVolume: Binding<Float> {
+        Binding(
+            get: { store.speechVolume },
+            set: { store.speechVolume = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var preUtteranceDelay: Binding<TimeInterval> {
+        Binding(
+            get: { store.preUtteranceDelay },
+            set: { store.preUtteranceDelay = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var postUtteranceDelay: Binding<TimeInterval> {
+        Binding(
+            get: { store.postUtteranceDelay },
+            set: { store.postUtteranceDelay = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var chunkUnit: Binding<TTSChunkUnit> {
+        Binding(
+            get: { store.chunkUnit },
+            set: { store.chunkUnit = $0; viewModel.settingsDidChange() }
+        )
+    }
+
+    var useSystemSpeechSettings: Binding<Bool> {
+        Binding(
+            get: { store.useSystemSpeechSettings },
+            set: { store.useSystemSpeechSettings = $0; viewModel.settingsDidChange() }
         )
     }
 }

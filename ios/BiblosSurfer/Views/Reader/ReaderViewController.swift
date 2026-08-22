@@ -25,6 +25,7 @@ final class ReaderViewController: UIViewController {
     private let wordDebouncer = Debouncer()
     private var ttsPanelHost: UIHostingController<TTSPanelView>?
     private var isMoving = false
+    private var lastSelectionLocator: Locator?
 
     init(
         publication: Publication,
@@ -128,7 +129,8 @@ final class ReaderViewController: UIViewController {
 
     @objc func readFromSelection() {
         guard viewModel.viewProperties.canSpeak else { return }
-        let locator = epubNavigator?.currentSelection?.locator
+        let locator = epubNavigator?.currentSelection?.locator ?? lastSelectionLocator
+        lastSelectionLocator = nil
         installTTSPanelIfNeeded()
         ttsService?.start(from: locator)
         epubNavigator?.clearSelection()
@@ -208,6 +210,11 @@ extension ReaderViewController: EPUBNavigatorDelegate, PDFNavigatorDelegate {
             Errors.Publication.openFailed(title: item.title, underlying: error.localizedDescription)
         )
     }
+
+    func navigator(_ navigator: SelectableNavigator, shouldShowMenuForSelection selection: Selection) -> Bool {
+        lastSelectionLocator = selection.locator
+        return true
+    }
 }
 
 extension ReaderViewController: TTSServiceDelegate {
@@ -259,6 +266,7 @@ extension ReaderViewController: ReaderActions {
         if let epubNavigator {
             epubNavigator.submitPreferences(viewModel.settings.epubPreferences())
         }
+        ttsService?.applySettings()
     }
 
     func closeSettings() {

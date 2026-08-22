@@ -35,6 +35,7 @@ final class ReaderViewModel: ErrorDismissing {
     let settings: ReaderSettingsStore
     weak var actions: ReaderActions?
     var availableVoices: [TTSVoice] = []
+    var settingsEpoch = 0
 
     init(title: String, format: PublicationFormat, canSpeak: Bool, settings: ReaderSettingsStore = ReaderSettingsStore()) {
         self.settings = settings
@@ -76,7 +77,41 @@ final class ReaderViewModel: ErrorDismissing {
         actions?.previousUtterance()
     }
 
+    var ttsLanguages: [Language] {
+        _ = settingsEpoch
+        var seen = Set<String>()
+        var languages: [Language] = []
+        for voice in availableVoices {
+            let language = voice.language.removingRegion()
+            if seen.insert(language.code.bcp47).inserted {
+                languages.append(language)
+            }
+        }
+        return languages.sorted { $0.localizedDescription() < $1.localizedDescription() }
+    }
+
+    var ttsVoices: [TTSVoice] {
+        _ = settingsEpoch
+        guard let code = settings.defaultLanguage else {
+            return availableVoices.rankedByAppleQuality()
+        }
+        return availableVoices
+            .filterByLanguage(Language(code: .bcp47(code)))
+            .rankedByAppleQuality()
+    }
+
+    func selectTTSLanguage(_ code: String?) {
+        settings.defaultLanguage = code
+        if let code, let voiceId = settings.voiceIdentifier,
+           let voice = availableVoices.first(where: { $0.identifier == voiceId }),
+           voice.language.removingRegion().code.bcp47 != Language(code: .bcp47(code)).removingRegion().code.bcp47 {
+            settings.voiceIdentifier = nil
+        }
+        settingsDidChange()
+    }
+
     func settingsDidChange() {
+        settingsEpoch += 1
         actions?.applyReaderSettings()
     }
 

@@ -23,6 +23,13 @@ final class SampleBookBundleTests: XCTestCase {
         XCTAssertEqual(Array(data.prefix(2)), Array("PK".utf8))
     }
 
+    func testGutenbergHistoryIndexIsBundled() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "pg28876-images-3", withExtension: "epub"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        let data = try Data(contentsOf: url)
+        XCTAssertEqual(Array(data.prefix(2)), Array("PK".utf8))
+    }
+
     func testSamplePDFIsBundled() throws {
         let url = try XCTUnwrap(TestFixtures.samplePDFURL)
         XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))

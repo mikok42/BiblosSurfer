@@ -17,7 +17,7 @@ final class LibraryService: LibraryServiceProtocol {
     private let fileManager: FileManager
     private let booksDirectory: URL
     private let coversDirectory: URL
-    private let bundledBookURL: URL?
+    private let bundledBookURLs: [URL]
     private let opener: PublicationOpeningServiceProtocol
     private let bookStore: BookStoreProtocol
 
@@ -25,14 +25,14 @@ final class LibraryService: LibraryServiceProtocol {
         fileManager: FileManager = .default,
         booksDirectory: URL? = nil,
         coversDirectory: URL? = nil,
-        bundledBookURL: URL? = Bundle.main.url(forResource: "genesis-ksiega-rodzaju-bereszit", withExtension: "epub"),
+        bundledBookURLs: [URL] = Bundle.main.urls(forResourcesWithExtension: "epub", subdirectory: nil) ?? [],
         opener: PublicationOpeningServiceProtocol = PublicationOpeningService(),
         bookStore: BookStoreProtocol = LocalBookService()
     ) {
         self.fileManager = fileManager
         self.booksDirectory = booksDirectory ?? fileManager.defaultBooksDirectory
         self.coversDirectory = coversDirectory ?? fileManager.defaultCoversDirectory
-        self.bundledBookURL = bundledBookURL
+        self.bundledBookURLs = bundledBookURLs
         self.opener = opener
         self.bookStore = bookStore
     }
@@ -81,9 +81,9 @@ final class LibraryService: LibraryServiceProtocol {
 
     private func libraryFileURLs() throws -> [URL] {
         var urls = try listedBookURLs()
-        if let bundledBookURL,
-           !urls.contains(where: { $0.lastPathComponent == bundledBookURL.lastPathComponent }) {
-            urls.append(bundledBookURL)
+        let existingNames = Set(urls.map(\.lastPathComponent))
+        for bundled in bundledBookURLs where !existingNames.contains(bundled.lastPathComponent) {
+            urls.append(bundled)
         }
         return urls
     }

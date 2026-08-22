@@ -12,14 +12,10 @@ protocol ErrorDismissing: AnyObject {
     func dismissError()
 }
 
-protocol ErrorRouting: AnyObject {
-    func dismissError()
-}
-
 @Observable
 final class ErrorViewModel: ErrorDismissing {
     let error: DescriptiveError
-    weak var router: ErrorRouting?
+    weak var router: ErrorDismissing?
 
     init(error: DescriptiveError) {
         self.error = error
