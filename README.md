@@ -1,13 +1,14 @@
 # BiblosSurfer
 
-E-book reader for iOS built on the [Readium Swift Toolkit](https://github.com/readium/swift-toolkit).
-Reads EPUB and PDF, remembers where you stopped, and speaks the book aloud from any point you
-select until you tell it to stop.
+E-book reader for iOS and Android, built on the [Readium Swift Toolkit](https://github.com/readium/swift-toolkit)
+and the [Readium Kotlin Toolkit](https://github.com/readium/kotlin-toolkit). Reads EPUB and PDF,
+remembers where you stopped, and speaks the book aloud from any point you select until you tell it
+to stop.
 
 | Path | Platform |
 |------|----------|
 | [`ios/`](ios/) | SwiftUI / Xcode — open `ios/BiblosSurfer.xcodeproj` |
-| [`android/`](android/) | Reserved for the Kotlin / Jetpack Compose port (not started) |
+| [`android/`](android/) | Kotlin / Jetpack Compose — open `android/` in Android Studio |
 
 Agent rules: [`.cursor/rules/`](.cursor/rules/) (see [`AGENTS.md`](AGENTS.md)).
 
@@ -49,6 +50,11 @@ Or open `ios/BiblosSurfer.xcodeproj` in Xcode and press Run.
 cd ios
 xcodebuild test -scheme BiblosSurfer \
   -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+```bash
+cd android
+./gradlew :app:testDebugUnitTest
 ```
 
 UI tests launch the app with `-UITestStub`, which swaps the real library for the bundled Genesis

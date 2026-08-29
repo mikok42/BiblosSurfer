@@ -24,12 +24,13 @@ xcuserdata/
 *.p8
 *.cer
 
-## Android (placeholder until the port lands)
+## Android
 android/.gradle/
 android/build/
 android/local.properties
-android/.idea/workspace.xml
-android/app/build/
+android/.idea/
+android/**/build/
+*.iml
 
 ## Node (tooling scripts)
 node_modules/
