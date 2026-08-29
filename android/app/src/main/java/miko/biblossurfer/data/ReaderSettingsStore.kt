@@ -44,8 +44,8 @@ class ReaderSettingsStore(
     private val defaults: SharedPreferences,
 ) {
     var fontSize: Double
-        get() = defaults.getFloat(KEY_FONT_SIZE, 1.0f).toDouble()
-        set(value) { defaults.edit().putFloat(KEY_FONT_SIZE, value.toFloat()).apply() }
+        get() = defaults.doubleOrDefault(KEY_FONT_SIZE, 1.0)
+        set(value) { defaults.edit().putDouble(KEY_FONT_SIZE, value).apply() }
 
     var fontFamily: String
         get() = defaults.getString(KEY_FONT_FAMILY, "Original") ?: "Original"
@@ -78,12 +78,12 @@ class ReaderSettingsStore(
         set(value) { defaults.edit().putFloat(KEY_VOLUME, value).apply() }
 
     var preUtteranceDelay: Double
-        get() = if (defaults.contains(KEY_PRE_DELAY)) defaults.getFloat(KEY_PRE_DELAY, 0f).toDouble() else 0.0
-        set(value) { defaults.edit().putFloat(KEY_PRE_DELAY, value.toFloat()).apply() }
+        get() = defaults.doubleOrDefault(KEY_PRE_DELAY, 0.0)
+        set(value) { defaults.edit().putDouble(KEY_PRE_DELAY, value).apply() }
 
     var postUtteranceDelay: Double
-        get() = if (defaults.contains(KEY_POST_DELAY)) defaults.getFloat(KEY_POST_DELAY, 0f).toDouble() else 0.0
-        set(value) { defaults.edit().putFloat(KEY_POST_DELAY, value.toFloat()).apply() }
+        get() = defaults.doubleOrDefault(KEY_POST_DELAY, 0.0)
+        set(value) { defaults.edit().putDouble(KEY_POST_DELAY, value).apply() }
 
     var defaultLanguage: String?
         get() = defaults.getString(KEY_LANGUAGE, null)
@@ -128,3 +128,9 @@ class ReaderSettingsStore(
         const val KEY_SYSTEM_SPEECH = "reader.useSystemSpeechSettings"
     }
 }
+
+fun SharedPreferences.doubleOrDefault(key: String, default: Double): Double =
+    if (contains(key)) java.lang.Double.longBitsToDouble(getLong(key, 0L)) else default
+
+fun SharedPreferences.Editor.putDouble(key: String, value: Double): SharedPreferences.Editor =
+    putLong(key, java.lang.Double.doubleToRawLongBits(value))
