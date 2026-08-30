@@ -38,7 +38,17 @@ final class PublicationOpeningService: PublicationOpeningServiceProtocol {
                 httpClient: httpClient,
                 assetRetriever: retriever,
                 pdfFactory: DefaultPDFDocumentFactory()
-            )
+            ),
+            onCreatePublication: { _, _, services in
+                services.setContentServiceFactory(
+                    DefaultContentService.makeFactory(
+                        resourceContentIteratorFactories: [
+                            TTSNoteStrippingIteratorFactory(),
+                            PDFResourceContentIterator.Factory(),
+                        ]
+                    )
+                )
+            }
         )
     }
 
