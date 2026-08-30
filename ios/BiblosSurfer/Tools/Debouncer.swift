@@ -26,4 +26,11 @@ final class Debouncer {
         workItem?.cancel()
         workItem = nil
     }
+
+    func flush() {
+        guard let item = workItem else { return }
+        workItem = nil
+        item.perform()
+        item.cancel()
+    }
 }

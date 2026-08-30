@@ -19,6 +19,7 @@ final class ReaderViewController: UIViewController {
     private let navigatorController: UIViewController
     private let visualNavigator: VisualNavigator
     private let epubNavigator: EPUBNavigatorViewController?
+    private let preferences: ReaderPreferencesApplying
     private let readerView: ReaderView
     private var ttsService: TTSService?
     private let locationDebouncer = Debouncer()
@@ -26,49 +27,15 @@ final class ReaderViewController: UIViewController {
     private var ttsPanelHost: UIHostingController<TTSPanelView>?
     private var isMoving = false
     private var lastSelectionLocator: Locator?
+    private var lastSpokenLocator: Locator?
 
     init(
         publication: Publication,
         item: LibraryItem,
         bookStore: BookStoreProtocol,
-        settings: ReaderSettingsStore
-    ) throws {
-        let initialLocation = item.locatorJSON.flatMap { try? Locator(jsonString: $0) }
-        let pdfNavigator: PDFNavigatorViewController?
-        let epubNavigator: EPUBNavigatorViewController?
-        let navigatorController: UIViewController
-        let visualNavigator: VisualNavigator
-
-        switch item.format {
-        case .pdf:
-            let pdf = try PDFNavigatorViewController(
-                publication: publication,
-                initialLocation: initialLocation
-            )
-            pdfNavigator = pdf
-            epubNavigator = nil
-            navigatorController = pdf
-            visualNavigator = pdf
-        case .epub:
-            var config = EPUBNavigatorViewController.Configuration(
-                preferences: settings.epubPreferences()
-            )
-            config.editingActions.append(
-                EditingAction(title: "Czytaj od tu", action: #selector(readFromSelection))
-            )
-            let epub = try EPUBNavigatorViewController(
-                publication: publication,
-                initialLocation: initialLocation,
-                config: config
-            )
-            pdfNavigator = nil
-            epubNavigator = epub
-            navigatorController = epub
-            visualNavigator = epub
-        case .unknown:
-            throw Errors.Publication.unknownFormat(title: item.title)
-        }
-
+        settings: ReaderSettingsStore,
+        session: ReaderSession
+    ) {
         self.publication = publication
         self.item = item
         self.bookStore = bookStore
@@ -79,13 +46,13 @@ final class ReaderViewController: UIViewController {
             canSpeak: item.format == .epub && PublicationSpeechSynthesizer.canSpeak(publication: publication),
             settings: settings
         )
-        self.navigatorController = navigatorController
-        self.visualNavigator = visualNavigator
-        self.epubNavigator = epubNavigator
-        self.readerView = ReaderView(navigatorView: navigatorController.view)
+        self.navigatorController = session.navigatorController
+        self.visualNavigator = session.visualNavigator
+        self.epubNavigator = session.epubNavigator
+        self.preferences = session.preferences
+        self.readerView = ReaderView(navigatorView: session.navigatorController.view)
         super.init(nibName: nil, bundle: nil)
-        pdfNavigator?.delegate = self
-        epubNavigator?.delegate = self
+        session.bindDelegate(self)
         viewModel.actions = self
 
         if viewModel.viewProperties.canSpeak {
@@ -123,7 +90,8 @@ final class ReaderViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         ttsService?.stop()
-        locationDebouncer.cancel()
+        persistReadingPosition()
+        locationDebouncer.flush()
         wordDebouncer.cancel()
     }
 
@@ -166,14 +134,27 @@ final class ReaderViewController: UIViewController {
 
     private func persist(locator: Locator) {
         locationDebouncer.schedule(after: 1) { [weak self] in
-            guard let self else { return }
-            let json = (try? locator.jsonString()) ?? ""
-            self.bookStore.updateProgress(
-                relativePath: self.openerRelativePath,
-                locatorJSON: json,
-                progression: locator.locations.totalProgression ?? 0
-            )
+            self?.writeProgress(locator)
         }
+    }
+
+    private func persistImmediately(locator: Locator) {
+        locationDebouncer.cancel()
+        writeProgress(locator)
+    }
+
+    private func persistReadingPosition() {
+        guard let locator = lastSpokenLocator ?? visualNavigator.currentLocation else { return }
+        persistImmediately(locator: locator)
+    }
+
+    private func writeProgress(_ locator: Locator) {
+        let json = (try? locator.jsonString()) ?? ""
+        bookStore.updateProgress(
+            relativePath: openerRelativePath,
+            locatorJSON: json,
+            progression: locator.locations.totalProgression ?? 0
+        )
     }
 
     private func followSpokenRange(_ locator: Locator) {
@@ -222,12 +203,15 @@ extension ReaderViewController: TTSServiceDelegate {
         viewModel.apply(ttsState: state)
         switch state {
         case .stopped:
+            persistReadingPosition()
             highlightUtterance(nil)
             removeTTSPanel()
         case .paused(let utterance):
+            lastSpokenLocator = utterance.locator
             highlightUtterance(utterance.locator)
             installTTSPanelIfNeeded()
         case .playing(let utterance, let range):
+            lastSpokenLocator = range ?? utterance.locator
             highlightUtterance(utterance.locator)
             installTTSPanelIfNeeded()
             if let range {
@@ -250,6 +234,7 @@ extension ReaderViewController: ReaderActions {
     }
 
     func stopTTS() {
+        persistReadingPosition()
         ttsService?.stop()
         removeTTSPanel()
     }
@@ -263,9 +248,7 @@ extension ReaderViewController: ReaderActions {
     }
 
     func applyReaderSettings() {
-        if let epubNavigator {
-            epubNavigator.submitPreferences(viewModel.settings.epubPreferences())
-        }
+        preferences.submitReaderPreferences(viewModel.settings)
         ttsService?.applySettings()
     }
 

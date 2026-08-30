@@ -67,6 +67,7 @@ final class ReaderViewModel: ErrorDismissing {
 
     func stopReading() {
         actions?.stopTTS()
+        
     }
 
     func nextUtterance() {

@@ -5,6 +5,8 @@
 //  Created by Mikołaj Linczewski on 21/08/2026.
 //
 
+import ReadiumNavigator
+import ReadiumShared
 import SwiftUI
 import UIKit
 
@@ -52,11 +54,13 @@ final class ReaderCoordinator: Coordinator {
                     format: opened.format,
                     folderName: item.folderName
                 )
-                let reader = try ReaderViewController(
+                let session = try makeSession(publication: opened.publication, item: resolved)
+                let reader = ReaderViewController(
                     publication: opened.publication,
                     item: resolved,
                     bookStore: bookStore,
-                    settings: settings
+                    settings: settings,
+                    session: session
                 )
                 navigationController.pushViewController(reader, animated: true)
             } catch let error as DescriptiveError {
@@ -71,6 +75,48 @@ final class ReaderCoordinator: Coordinator {
                     underlying: error.localizedDescription
                 ))
             }
+        }
+    }
+
+    func makeSession(publication: Publication, item: LibraryItem) throws -> ReaderSession {
+        let initialLocation = item.locatorJSON.flatMap { try? Locator(jsonString: $0) }
+        switch item.format {
+        case .pdf:
+            let pdf = try PDFNavigatorViewController(
+                publication: publication,
+                initialLocation: initialLocation,
+                config: PDFNavigatorViewController.Configuration(
+                    preferences: settings.pdfPreferences()
+                )
+            )
+            return ReaderSession(
+                navigatorController: pdf,
+                visualNavigator: pdf,
+                epubNavigator: nil,
+                pdfNavigator: pdf,
+                preferences: pdf
+            )
+        case .epub:
+            var config = EPUBNavigatorViewController.Configuration(
+                preferences: settings.epubPreferences()
+            )
+            config.editingActions.append(
+                EditingAction(title: "Czytaj od tego miejsca", action: #selector(ReaderViewController.readFromSelection))
+            )
+            let epub = try EPUBNavigatorViewController(
+                publication: publication,
+                initialLocation: initialLocation,
+                config: config
+            )
+            return ReaderSession(
+                navigatorController: epub,
+                visualNavigator: epub,
+                epubNavigator: epub,
+                pdfNavigator: nil,
+                preferences: epub
+            )
+        case .unknown:
+            throw Errors.Publication.unknownFormat(title: item.title)
         }
     }
 

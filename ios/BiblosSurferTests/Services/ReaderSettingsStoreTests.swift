@@ -24,6 +24,24 @@ final class ReaderSettingsStoreTests: XCTestCase {
         XCTAssertEqual(preferences.publisherStyles, false)
     }
 
+    func testScrollDefaultsToEnabledWhenUnset() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = ReaderSettingsStore(defaults: defaults)
+        XCTAssertTrue(store.scroll)
+        XCTAssertEqual(store.epubPreferences().scroll, true)
+        XCTAssertEqual(store.pdfPreferences().scroll, true)
+        XCTAssertEqual(store.pdfPreferences().scrollAxis, .vertical)
+    }
+
+    func testScrollCanBeDisabled() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let store = ReaderSettingsStore(defaults: defaults)
+        store.scroll = false
+        XCTAssertFalse(store.scroll)
+        XCTAssertEqual(store.epubPreferences().scroll, false)
+        XCTAssertEqual(store.pdfPreferences().scroll, false)
+    }
+
     func testTTSSettingsUseEngineDefaults() {
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let store = ReaderSettingsStore(defaults: defaults)

@@ -57,7 +57,7 @@ final class ReaderSettingsStore {
     }
 
     var scroll: Bool {
-        get { defaults.bool(forKey: "reader.scroll") }
+        get { defaults.object(forKey: "reader.scroll") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "reader.scroll") }
     }
 
@@ -126,6 +126,13 @@ final class ReaderSettingsStore {
             preferences.fontFamily = FontFamily(rawValue: fontFamily)
             preferences.publisherStyles = false
         }
+        return preferences
+    }
+
+    func pdfPreferences() -> PDFPreferences {
+        var preferences = PDFPreferences()
+        preferences.scroll = scroll
+        preferences.scrollAxis = .vertical
         return preferences
     }
 }

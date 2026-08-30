@@ -24,7 +24,19 @@ final class LocalBookService: BookStoreProtocol {
     }
 
     func upsert(_ item: LibraryItem, relativePath: String, coverFileName: String?) {
-        items[relativePath] = item
+        let existing = items[relativePath]
+        items[relativePath] = LibraryItem(
+            id: item.id,
+            fileName: item.fileName,
+            title: item.title,
+            author: item.author,
+            fileURL: item.fileURL,
+            coverURL: item.coverURL ?? existing?.coverURL,
+            locatorJSON: item.locatorJSON ?? existing?.locatorJSON,
+            progression: item.progression,
+            format: item.format,
+            folderName: item.folderName
+        )
     }
 
     func updateProgress(relativePath: String, locatorJSON: String, progression: Double) {
