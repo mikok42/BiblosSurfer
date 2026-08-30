@@ -210,6 +210,7 @@ private final class TTSStartAnchor {
             }
         )
         return { [weak self] element in
+            guard let element = element.preparedForTTS() else { return [] }
             let chunks = try tokenize(element)
             guard let highlight = self?.highlight, !highlight.isEmpty else {
                 return chunks
