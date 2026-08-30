@@ -103,6 +103,25 @@ class DebouncerTests {
         advanceTimeBy(1500)
         assertEquals(2, value)
     }
+
+    @Test
+    fun flushRunsPendingActionImmediately() = runTest {
+        val debouncer = Debouncer(this)
+        var ran = false
+        debouncer.schedule(10.0) { ran = true }
+        debouncer.flush()
+        assertTrue(ran)
+    }
+
+    @Test
+    fun cancelDropsPendingAction() = runTest {
+        val debouncer = Debouncer(this)
+        var ran = false
+        debouncer.schedule(10.0) { ran = true }
+        debouncer.cancel()
+        debouncer.flush()
+        assertFalse(ran)
+    }
 }
 
 class LibraryViewModelTests {

@@ -1,7 +1,9 @@
 package miko.biblossurfer.data
 
 import android.content.SharedPreferences
+import org.readium.adapter.pdfium.navigator.PdfiumPreferences
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.preferences.Axis
 import org.readium.r2.navigator.preferences.FontFamily
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.shared.util.tokenizer.TextUnit
@@ -58,7 +60,7 @@ class ReaderSettingsStore(
         set(value) { defaults.edit().putString(KEY_THEME, value.name.lowercase()).apply() }
 
     var scroll: Boolean
-        get() = defaults.getBoolean(KEY_SCROLL, false)
+        get() = defaults.getBoolean(KEY_SCROLL, true)
         set(value) { defaults.edit().putBoolean(KEY_SCROLL, value).apply() }
 
     var voiceIdentifier: String?
@@ -111,6 +113,11 @@ class ReaderSettingsStore(
         }
         return preferences
     }
+
+    fun pdfPreferences(): PdfiumPreferences =
+        PdfiumPreferences(
+            scrollAxis = Axis.VERTICAL,
+        )
 
     companion object {
         const val KEY_FONT_SIZE = "reader.fontSize"

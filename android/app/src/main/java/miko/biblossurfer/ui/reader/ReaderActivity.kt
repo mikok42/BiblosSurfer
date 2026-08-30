@@ -85,12 +85,12 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
     private var opened: OpenedPublication? = null
     private var viewModel: ReaderViewModel? = null
     private var tts: TtsController? = null
-    private var visualNavigator: VisualNavigator? = null
-    private var epubNavigator: EpubNavigatorFragment? = null
+    private var session: ReaderSession? = null
     private val locationDebouncer = Debouncer(lifecycleScope)
     private val wordDebouncer = Debouncer(lifecycleScope)
     private var isMoving = false
     private var lastSelectionLocator: Locator? = null
+    private var lastSpokenLocator: Locator? = null
     private var overlayState by mutableStateOf(OverlayUi())
     private var showTtsSettings by mutableStateOf(false)
 
@@ -237,6 +237,7 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
                 )
                 supportFragmentManager.fragmentFactory = factory.createFragmentFactory(
                     initialLocator = initialLocation,
+                    initialPreferences = app.serviceProvider.settings.pdfPreferences(),
                     listener = pdfListener,
                 )
             }
@@ -258,8 +259,26 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
             replace(R.id.navigator_container, fragmentClass, Bundle(), NAVIGATOR_TAG)
         }
         val navigator = supportFragmentManager.findFragmentByTag(NAVIGATOR_TAG)
-        epubNavigator = navigator as? EpubNavigatorFragment
-        visualNavigator = navigator as? VisualNavigator
+        val epubNavigator = navigator as? EpubNavigatorFragment
+        val pdfNavigator = navigator as? PdfNavigatorFragment<*, *>
+        val visualNavigator = navigator as? VisualNavigator ?: return
+        val preferences: ReaderPreferencesApplying = when {
+            epubNavigator != null -> EpubPreferencesApplying(epubNavigator, lifecycleScope)
+            pdfNavigator != null -> {
+                @Suppress("UNCHECKED_CAST")
+                PdfiumPreferencesApplying(
+                    pdfNavigator as PdfNavigatorFragment<*, org.readium.adapter.pdfium.navigator.PdfiumPreferences>,
+                    lifecycleScope,
+                )
+            }
+            else -> return
+        }
+        session = ReaderSession(
+            visualNavigator = visualNavigator,
+            epubNavigator = epubNavigator,
+            pdfNavigator = pdfNavigator,
+            preferences = preferences,
+        )
         observeLocator(navigator as Navigator)
         overlayState = OverlayUi(loading = false, title = opened.title)
     }
@@ -274,13 +293,29 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
 
     private fun persist(locator: Locator) {
         locationDebouncer.schedule(1.0) {
-            val json = locator.toJSON().toString()
-            app.serviceProvider.bookService.updateProgress(
-                relativePath = item.fileURL.name,
-                locatorJSON = json,
-                progression = locator.locations.totalProgression ?: 0.0,
-            )
+            writeProgress(locator)
         }
+    }
+
+    private fun persistImmediately(locator: Locator) {
+        locationDebouncer.cancel()
+        writeProgress(locator)
+    }
+
+    private fun persistReadingPosition() {
+        val locator = lastSpokenLocator
+            ?: session?.visualNavigator?.currentLocator?.value
+            ?: return
+        persistImmediately(locator)
+    }
+
+    private fun writeProgress(locator: Locator) {
+        val json = locator.toJSON().toString()
+        app.serviceProvider.bookService.updateProgress(
+            relativePath = item.fileURL.name,
+            locatorJSON = json,
+            progression = locator.locations.totalProgression ?: 0.0,
+        )
     }
 
     private fun followSpokenRange(locator: Locator) {
@@ -288,14 +323,14 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
         wordDebouncer.schedule(1.0) {
             isMoving = true
             lifecycleScope.launch {
-                visualNavigator?.go(locator, false)
+                session?.visualNavigator?.go(locator, false)
                 isMoving = false
             }
         }
     }
 
     private fun highlightUtterance(locator: Locator?) {
-        val navigator = epubNavigator as? DecorableNavigator ?: return
+        val navigator = session?.epubNavigator as? DecorableNavigator ?: return
         val decorations = if (locator != null) {
             listOf(
                 Decoration(
@@ -334,11 +369,11 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
         val vm = viewModel ?: return
         if (!vm.viewProperties.value.canSpeak) return
         lifecycleScope.launch {
-            val locator = epubNavigator?.currentSelection()?.locator ?: lastSelectionLocator
+            val locator = session?.epubNavigator?.currentSelection()?.locator ?: lastSelectionLocator
             lastSelectionLocator = null
             overlayState = overlayState.copy(showTtsPanel = true)
             tts?.start(locator)
-            epubNavigator?.clearSelection()
+            session?.epubNavigator?.clearSelection()
         }
     }
 
@@ -346,9 +381,10 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
         super.onStop()
         if (isFinishing) {
             tts?.stop()
-            locationDebouncer.cancel()
-            wordDebouncer.cancel()
         }
+        persistReadingPosition()
+        locationDebouncer.flush()
+        wordDebouncer.cancel()
     }
 
     override fun onDestroy() {
@@ -360,8 +396,7 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
         val controller = tts ?: return
         if (controller.state == TtsPlaybackState.STOPPED) {
             lifecycleScope.launch {
-                val locator = (visualNavigator as? org.readium.r2.navigator.VisualNavigator)
-                    ?.firstVisibleElementLocator()
+                val locator = session?.visualNavigator?.firstVisibleElementLocator()
                 overlayState = overlayState.copy(showTtsPanel = true)
                 controller.start(locator)
             }
@@ -371,6 +406,7 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
     }
 
     override fun stopTTS() {
+        persistReadingPosition()
         tts?.stop()
         overlayState = overlayState.copy(showTtsPanel = false)
         highlightUtterance(null)
@@ -385,10 +421,8 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
     }
 
     override fun applyReaderSettings() {
-        val prefs = viewModel?.settings?.epubPreferences() ?: return
-        lifecycleScope.launch {
-            epubNavigator?.submitPreferences(prefs)
-        }
+        val settings = viewModel?.settings ?: return
+        session?.preferences?.submitReaderPreferences(settings)
         tts?.applySettings()
     }
 
@@ -413,12 +447,20 @@ class ReaderActivity : AppCompatActivity(), ReaderActions, TtsServiceDelegate, E
         }
         viewModel?.apply(state)
         overlayState = overlayState.copy(showTtsPanel = state != TtsPlaybackState.STOPPED)
-        highlightUtterance(utteranceLocator)
-        if (state == TtsPlaybackState.PLAYING) {
-            tokenLocator?.let { followSpokenRange(it) }
-        }
-        if (state == TtsPlaybackState.STOPPED) {
-            highlightUtterance(null)
+        when (state) {
+            TtsPlaybackState.STOPPED -> {
+                persistReadingPosition()
+                highlightUtterance(null)
+            }
+            TtsPlaybackState.PAUSED -> {
+                lastSpokenLocator = utteranceLocator
+                highlightUtterance(utteranceLocator)
+            }
+            TtsPlaybackState.PLAYING -> {
+                lastSpokenLocator = tokenLocator ?: utteranceLocator
+                highlightUtterance(utteranceLocator)
+                tokenLocator?.let { followSpokenRange(it) }
+            }
         }
     }
 
