@@ -35,6 +35,29 @@ class ReaderSettingsStoreTests {
     }
 
     @Test
+    fun scrollDefaultsToEnabledWhenUnset() {
+        val defaults = ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences(UUID.randomUUID().toString(), Context.MODE_PRIVATE)
+        val store = ReaderSettingsStore(defaults)
+        assertTrue(store.scroll)
+        assertEquals(true, store.epubPreferences().scroll)
+        assertEquals(
+            org.readium.r2.navigator.preferences.Axis.VERTICAL,
+            store.pdfPreferences().scrollAxis,
+        )
+    }
+
+    @Test
+    fun scrollCanBeDisabled() {
+        val defaults = ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences(UUID.randomUUID().toString(), Context.MODE_PRIVATE)
+        val store = ReaderSettingsStore(defaults)
+        store.scroll = false
+        assertFalse(store.scroll)
+        assertEquals(false, store.epubPreferences().scroll)
+    }
+
+    @Test
     fun ttsSettingsUseEngineDefaults() {
         val defaults = ApplicationProvider.getApplicationContext<Context>()
             .getSharedPreferences(UUID.randomUUID().toString(), Context.MODE_PRIVATE)

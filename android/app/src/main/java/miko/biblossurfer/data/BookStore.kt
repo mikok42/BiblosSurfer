@@ -24,7 +24,11 @@ class LocalBookService : BookStoreProtocol {
     override fun book(atRelativePath: String): LibraryItem? = items[atRelativePath]
 
     override fun upsert(item: LibraryItem, relativePath: String, coverFileName: String?) {
-        items[relativePath] = item
+        val existing = items[relativePath]
+        items[relativePath] = item.copy(
+            coverURL = item.coverURL ?: existing?.coverURL,
+            locatorJSON = item.locatorJSON ?: existing?.locatorJSON,
+        )
     }
 
     override fun updateProgress(relativePath: String, locatorJSON: String, progression: Double) {

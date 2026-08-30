@@ -3,8 +3,11 @@ package miko.biblossurfer.data
 import android.content.Context
 import android.graphics.Bitmap
 import miko.biblossurfer.data.model.PublicationFormat
+import miko.biblossurfer.data.tts.SkippingNotesContentService
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.content.ContentService
 import org.readium.r2.shared.publication.services.cover
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
@@ -56,7 +59,11 @@ class PublicationOpeningService(
         val asset = assetRetriever.retrieve(url).getOrElse { error ->
             throw Errors.Publication.OpenFailed(displayTitle, error.toString())
         }
-        val publication = publicationOpener.open(asset, allowUserInteraction = false).getOrElse { error ->
+        val publication = publicationOpener.open(
+            asset = asset,
+            allowUserInteraction = false,
+            onCreatePublication = { skipTtsNotes() },
+        ).getOrElse { error ->
             throw Errors.Publication.OpenFailed(displayTitle, error.toString())
         }
         val title = publication.metadata.title ?: displayTitle
@@ -92,3 +99,14 @@ val Publication.publicationFormat: PublicationFormat
         }
         return PublicationFormat.UNKNOWN
     }
+
+@OptIn(ExperimentalReadiumApi::class)
+fun Publication.Builder.skipTtsNotes() {
+    servicesBuilder.decorate(ContentService::class) { oldFactory ->
+        { context ->
+            val original = oldFactory?.invoke(context) as? ContentService
+            original?.let(::SkippingNotesContentService)
+        }
+    }
+}
+
