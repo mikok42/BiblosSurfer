@@ -74,9 +74,14 @@ final class TTSService: NSObject {
 
     func start(from locator: Locator?) {
         applySettings()
-        let highlight = locator?.text.highlight?.collapsedWhitespace
+        let highlight = locator?.text.highlight?
+            .strippingInlineTTSNoteMarkers
+            .collapsedWhitespace
         startAnchor.highlight = (highlight?.isEmpty == false) ? highlight : nil
-        synthesizer.start(from: locator)
+        startAnchor.resetSkip()
+        // Visual cssSelector often points at `<a class="anchor" id="anchor-N">`,
+        // which the TTS ContentService has already stripped.
+        synthesizer.start(from: locator?.removingTTSNoteSelector)
         updateNowPlaying(isPlaying: true)
     }
 
@@ -200,6 +205,11 @@ extension TTSService: AVTTSEngineDelegate {
 /// the top of the resource.
 private final class TTSStartAnchor {
     var highlight: String?
+    private var skippedUnmatched = false
+
+    func resetSkip() {
+        skippedUnmatched = false
+    }
 
     func tokenizer(defaultLanguage: Language?, chunkUnit: TextUnit) -> ContentTokenizer {
         let tokenize = makeTextContentTokenizer(
@@ -218,8 +228,22 @@ private final class TTSStartAnchor {
                 self?.highlight = nil
                 return Array(chunks[index...])
             }
-            return []
+            // Page progression starts one block early. Skip that verse once;
+            // if the selection still does not match, speak anyway so the panel
+            // does not vanish.
+            if self?.skippedUnmatched == false {
+                self?.skippedUnmatched = true
+                return []
+            }
+            self?.highlight = nil
+            return chunks
         }
+    }
+}
+
+extension Locator {
+    var removingTTSNoteSelector: Locator {
+        copy(locations: { $0.cssSelector = nil })
     }
 }
 
@@ -242,6 +266,37 @@ extension String {
         let haystack = collapsedWhitespace
         let needle = other.collapsedWhitespace
         guard !haystack.isEmpty, !needle.isEmpty else { return false }
-        return haystack.localizedStandardContains(needle) || needle.localizedStandardContains(haystack)
+        if haystack.localizedStandardContains(needle) || needle.localizedStandardContains(haystack) {
+            return true
+        }
+        let haystackPlain = haystack.strippingTTSDigits
+        let needlePlain = needle.strippingTTSDigits
+        guard !haystackPlain.isEmpty, !needlePlain.isEmpty else { return false }
+        return haystackPlain.localizedStandardContains(needlePlain)
+            || needlePlain.localizedStandardContains(haystackPlain)
+    }
+
+    var strippingTTSDigits: String {
+        filter { !$0.isNumber }.collapsedWhitespace
+    }
+
+    /// Visual selection still contains flattened `<sup>21</sup>` (`się21`).
+    /// Speech does not; this is only for matching the start anchor.
+    var strippingInlineTTSNoteMarkers: String {
+        replacingOccurrences(
+            of: #"(?<=\p{L})\d{1,3}(?=\s|[[:punct:]]|$)"#,
+            with: "",
+            options: .regularExpression
+        )
+        .replacingOccurrences(
+            of: #"\[\d{1,3}\]"#,
+            with: "",
+            options: .regularExpression
+        )
+        .replacingOccurrences(
+            of: #"[¹²³⁴⁵⁶⁷⁸⁹⁰]+"#,
+            with: "",
+            options: .regularExpression
+        )
     }
 }

@@ -29,9 +29,14 @@ final class TTSNoteStrippingIteratorFactory: ResourceContentIteratorFactory {
         resource: Resource,
         locator: Locator
     ) -> ContentIterator? {
-        guard locator.mediaType.isHTML else { return nil }
-        let href = locator.href.string
-        let cleaned = resource.mapAsString { $0.htmlPreparedForTTS(href: href) }
+        guard publication.readingOrder.indices.contains(readingOrderIndex) else {
+            return nil
+        }
+        let link = publication.readingOrder[readingOrderIndex]
+        guard link.mediaType?.isHTML == true || locator.mediaType.isHTML else {
+            return nil
+        }
+        let cleaned = resource.mapAsString { $0.htmlPreparedForTTS(href: link.href) }
         return html.make(
             publication: publication,
             readingOrderIndex: readingOrderIndex,

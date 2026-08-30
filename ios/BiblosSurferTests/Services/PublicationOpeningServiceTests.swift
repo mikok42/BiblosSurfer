@@ -37,6 +37,29 @@ final class PublicationOpeningServiceTests: XCTestCase {
         XCTAssertFalse(whole.contains("[przypis edytorski]"))
     }
 
+    func testContentFromRemovedAnchorSelectorStillYieldsChapterText() async throws {
+        let url = try TestFixtures.temporarySampleBookURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let opened = try await PublicationOpeningService().open(url: url)
+        let link = try XCTUnwrap(
+            opened.publication.readingOrder.first(where: { $0.href.contains("part3") })
+        )
+        var locations = Locator.Locations()
+        locations.cssSelector = "#anchor-21"
+        let locator = Locator(
+            href: link.url(),
+            mediaType: link.mediaType ?? .xhtml,
+            locations: locations,
+            text: Locator.Text(highlight: "zrodzenia się21 nieba")
+        )
+        let elements = await opened.publication.content(from: locator)?.elements() ?? []
+        XCTAssertFalse(elements.isEmpty)
+        XCTAssertTrue(
+            elements.contains { ($0 as? TextualContentElement)?.text?.contains("zrodzenia się") == true }
+        )
+    }
+
     func testSamplePDFIsOpenedAsPDF() async throws {
         let url = try TestFixtures.temporarySamplePDFURL()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }

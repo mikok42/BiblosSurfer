@@ -83,4 +83,14 @@ final class TTSHighlightMatchingTests: XCTestCase {
         XCTAssertTrue("Egypt".overlapsCollapsedText(sentence))
         XCTAssertFalse(sentence.overlapsCollapsedText("Babylonia"))
     }
+
+    func testSelectionWithFootnoteMarkerMatchesStrippedSpeech() {
+        let spoken = "Oto [dzieje] zrodzenia się nieba i ziemi"
+        XCTAssertTrue(spoken.overlapsCollapsedText("zrodzenia się21 nieba"))
+        XCTAssertTrue(
+            "I ukończone były niebo i ziemia, i wszystkie ich zastępy1819. I skończył Bóg"
+                .overlapsCollapsedText("I ukończone były niebo i ziemia, i wszystkie ich zastępy.")
+        )
+        XCTAssertTrue("The T-800 arrived in 1995.".overlapsCollapsedText("T-800"))
+    }
 }
