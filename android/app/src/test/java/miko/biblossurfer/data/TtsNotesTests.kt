@@ -1,15 +1,21 @@
 package miko.biblossurfer.data.tts
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.services.content.Content
 import org.readium.r2.shared.util.Url
 import org.readium.r2.shared.util.mediatype.MediaType
+import org.robolectric.annotation.Config
+import androidx.test.ext.junit.runners.AndroidJUnit4
 
+@RunWith(AndroidJUnit4::class)
+@Config(sdk = [33])
 @OptIn(ExperimentalReadiumApi::class)
 class TtsNotesTests {
     @Test
@@ -63,6 +69,22 @@ class TtsNotesTests {
         )
     }
 
+    @Test
+    fun iteratorSkipsNoteElements() = kotlinx.coroutines.test.runTest {
+        val note = textElement(
+            href = "EPUB/annotations.xhtml",
+            highlight = "A gloss.",
+        )
+        val body = textElement(
+            href = "OEBPS/chapter1.xhtml",
+            highlight = "In the beginning.",
+        )
+        val iterator = SkippingNotesIterator(SequenceContentIterator(listOf(note, body)))
+        assertTrue(iterator.hasNext())
+        assertEquals("In the beginning.", (iterator.next() as Content.TextElement).text)
+        assertFalse(iterator.hasNext())
+    }
+
     private fun textElement(
         href: String = "OEBPS/chapter1.xhtml",
         selector: String? = null,
@@ -90,3 +112,26 @@ class TtsNotesTests {
         )
     }
 }
+
+@OptIn(ExperimentalReadiumApi::class)
+private class SequenceContentIterator(
+    elements: List<Content.Element>,
+) : Content.Iterator {
+    private val items = elements
+    private var index = -1
+
+    override suspend fun hasNext(): Boolean = index + 1 < items.size
+
+    override fun next(): Content.Element {
+        index += 1
+        return items[index]
+    }
+
+    override suspend fun hasPrevious(): Boolean = index > 0
+
+    override fun previous(): Content.Element {
+        index -= 1
+        return items[index]
+    }
+}
+

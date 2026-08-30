@@ -20,7 +20,6 @@ import org.readium.r2.shared.publication.Publication
 import org.readium.r2.shared.util.Language
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.shared.util.tokenizer.DefaultTextContentTokenizer
-import org.readium.r2.shared.publication.services.content.ContentTokenizer
 
 interface TtsServiceDelegate {
     fun ttsServiceDidChange(isPlaying: Boolean, utteranceLocator: Locator?, tokenLocator: Locator?)
@@ -45,14 +44,7 @@ class TtsController(
         application,
         publication,
         tokenizerFactory = { language ->
-            val tokenize = DefaultTextContentTokenizer(
-                unit = settings.chunkUnit.textUnit,
-                language = language,
-            )
-            ContentTokenizer { element ->
-                val prepared = element.preparedForTTS() ?: return@ContentTokenizer emptyList()
-                tokenize.tokenize(prepared)
-            }
+            DefaultTextContentTokenizer(unit = settings.chunkUnit.textUnit, language = language)
         },
     )
 
