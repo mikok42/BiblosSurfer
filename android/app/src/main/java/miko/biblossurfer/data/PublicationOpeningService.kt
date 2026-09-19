@@ -3,11 +3,12 @@ package miko.biblossurfer.data
 import android.content.Context
 import android.graphics.Bitmap
 import miko.biblossurfer.data.model.PublicationFormat
-import miko.biblossurfer.data.tts.SkippingNotesContentService
+import miko.biblossurfer.data.tts.TTSNoteStrippingIteratorFactory
 import org.readium.adapter.pdfium.document.PdfiumDocumentFactory
 import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Publication
-import org.readium.r2.shared.publication.services.content.ContentService
+import org.readium.r2.shared.publication.services.content.DefaultContentService
+import org.readium.r2.shared.publication.services.content.contentServiceFactory
 import org.readium.r2.shared.publication.services.cover
 import org.readium.r2.shared.util.asset.AssetRetriever
 import org.readium.r2.shared.util.getOrElse
@@ -62,7 +63,7 @@ class PublicationOpeningService(
         val publication = publicationOpener.open(
             asset = asset,
             allowUserInteraction = false,
-            onCreatePublication = { skipTtsNotes() },
+            onCreatePublication = { installTtsNoteStripping() },
         ).getOrElse { error ->
             throw Errors.Publication.OpenFailed(displayTitle, error.toString())
         }
@@ -101,12 +102,9 @@ val Publication.publicationFormat: PublicationFormat
     }
 
 @OptIn(ExperimentalReadiumApi::class)
-fun Publication.Builder.skipTtsNotes() {
-    servicesBuilder.decorate(ContentService::class) { oldFactory ->
-        { context ->
-            val original = oldFactory?.invoke(context) as? ContentService
-            original?.let(::SkippingNotesContentService)
-        }
-    }
+fun Publication.Builder.installTtsNoteStripping() {
+    servicesBuilder.contentServiceFactory = DefaultContentService.createFactory(
+        listOf(TTSNoteStrippingIteratorFactory()),
+    )
 }
 

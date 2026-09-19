@@ -27,7 +27,7 @@ cd android
 | Library service | `LibraryService.swift` | `data/LibraryService.kt` |
 | Publication opening | `ReadiumServices.swift` | `data/PublicationOpeningService.kt` |
 | TTS | `TTSService.swift` | `data/tts/TtsController.kt` |
-| TTS note skip | `ContentElement+TTSNotes.swift` | `data/tts/TtsNotes.kt` |
+| TTS note skip | `TTSNoteStrippingIteratorFactory.swift` | `data/tts/TTSNoteStrippingIteratorFactory.kt` |
 | Voice ranking | `TTSVoice+AppleQuality.swift` | `data/tts/TtsVoiceQuality.kt` |
 | Library view model | `LibraryViewModel.swift` | `ui/library/LibraryViewModel.kt` |
 | Reader view model | `ReaderViewModel.swift` | `ui/reader/ReaderViewModel.kt` |
@@ -44,7 +44,7 @@ cd android
 
 - **PDF renderer.** iOS uses PDFKit; Android uses the Readium Pdfium adapter (`readium-adapter-pdfium`). Native Pdfium cannot load in JVM unit tests, so the PDF-open test falls back to path-extension format when the `.so` is missing. Readium Kotlin 3.3.0's `PdfiumPreferences` has `scrollAxis` but no `scroll` flag — iOS `PDFPreferences.scroll` is therefore applied only as vertical `scrollAxis` on Android.
 - **Bundled EPUBs.** iOS reads bundle URLs in place. Android assets are not files, so they are extracted once into `filesDir/BundledBooks` — never into the user `Books/` directory.
-- **TTS engine.** iOS `AVSpeechUtterance` rate/pitch vs Android `AndroidTtsPreferences` speed/pitch. Preference *keys* match (`reader.speechRate`, …); native default values differ (Android rate default is `1.0`). Android TTS only accepts a string tokenizer, so note/footnote bodies are dropped by wrapping `ContentService` at publication open rather than inside the iOS content tokenizer.
+- **TTS engine.** iOS `AVSpeechUtterance` rate/pitch vs Android `AndroidTtsPreferences` speed/pitch. Preference *keys* match (`reader.speechRate`, …); native default values differ (Android rate default is `1.0`). Note markup is stripped from HTML in a ContentService iterator factory on both platforms so the visual navigator is untouched; Android still has no content-level tokenizer, so "read from here" skips at most one unmatched utterance instead of wrapping the iOS content tokenizer.
 - **Voice ranking.** Apple compact/neural/premium identifiers are still recognised so tests and copied settings stay meaningful; Android engine quality and network flags fill the same tiers.
 
 Locator JSON (`href`, `type`, `locations`, `text`) is wire-compatible with the Swift toolkit.

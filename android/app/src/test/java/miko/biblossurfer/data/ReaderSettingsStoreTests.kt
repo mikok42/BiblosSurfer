@@ -102,4 +102,15 @@ class TtsHighlightMatchingTests {
         assertTrue("Egypt".overlapsCollapsedText(sentence))
         assertFalse(sentence.overlapsCollapsedText("Babylonia"))
     }
+
+    @Test
+    fun selectionWithFootnoteMarkerMatchesStrippedSpeech() {
+        val spoken = "Oto [dzieje] zrodzenia się nieba i ziemi"
+        assertTrue(spoken.overlapsCollapsedText("zrodzenia się21 nieba"))
+        assertTrue(
+            "I ukończone były niebo i ziemia, i wszystkie ich zastępy1819. I skończył Bóg"
+                .overlapsCollapsedText("I ukończone były niebo i ziemia, i wszystkie ich zastępy."),
+        )
+        assertTrue("The T-800 arrived in 1995.".overlapsCollapsedText("T-800"))
+    }
 }
