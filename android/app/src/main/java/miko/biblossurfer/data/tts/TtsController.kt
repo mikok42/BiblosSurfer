@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.onEach
 import miko.biblossurfer.data.DescriptiveError
 import miko.biblossurfer.data.Errors
 import miko.biblossurfer.data.ReaderSettingsStore
+import miko.biblossurfer.data.collapsedWhitespace
+import miko.biblossurfer.data.removingTTSNoteSelector
+import miko.biblossurfer.data.strippingInlineTTSNoteMarkers
 import org.readium.navigator.media.tts.AndroidTtsNavigator
 import org.readium.navigator.media.tts.AndroidTtsNavigatorFactory
 import org.readium.navigator.media.tts.TtsNavigator
@@ -51,6 +54,7 @@ class TtsController(
     private var navigator: AndroidTtsNavigator? = null
     private var playbackJob: Job? = null
     private var locationJob: Job? = null
+    private val startAnchor = TtsStartAnchor()
     var delegate: TtsServiceDelegate? = null
 
     val availableVoices: List<TtsVoiceInfo>
@@ -67,9 +71,16 @@ class TtsController(
             return
         }
         closeNavigator()
+        val highlight = from?.text?.highlight
+            ?.strippingInlineTTSNoteMarkers()
+            ?.collapsedWhitespace()
+        startAnchor.highlight = highlight?.takeIf { it.isNotEmpty() }
+        startAnchor.resetSkip()
+        // Visual cssSelector often points at `<a class="anchor" id="anchor-N">`,
+        // which the TTS ContentService has already stripped.
         val created = factory.createNavigator(
             listener = this,
-            initialLocator = from,
+            initialLocator = from?.removingTTSNoteSelector(),
             initialPreferences = ttsPreferences(),
         ).getOrElse { error ->
             delegate?.ttsServiceDidFail(Errors.Tts.EngineFailed(error.toString()))
@@ -149,6 +160,10 @@ class TtsController(
             .launchIn(scope)
         locationJob = nav.location
             .onEach { location ->
+                if (!startAnchor.shouldSpeak(location.utterance)) {
+                    nav.skipToNextUtterance()
+                    return@onEach
+                }
                 val playing = state == TtsPlaybackState.PLAYING
                 delegate?.ttsServiceDidChange(playing, location.utteranceLocator, location.tokenLocator)
             }
